@@ -1,9 +1,68 @@
 ---
+
 title: "Payment Integration (X402)"
-description: "Monetize AI agents with cryptocurrency payments"
+description: "Monetize AI agents with verifiable, on-chain payments"
 ---
 
-Bindu supports the **X402 payment protocol**, enabling you to monetize your AI agents by requiring cryptocurrency payments before executing specific methods.
+Bindu supports the **X402 payment protocol**, allowing you to require payments before executing specific agent methods.
+
+In simple terms:
+
+**Users pay → receive a payment token → use that token to access paid functionality.**
+
+Bindu manages the full lifecycle: session creation, payment capture, on-chain verification, and access control.
+
+---
+
+## Overview
+
+### What is a Payment Token?
+
+A **payment token** is a short-lived JWT issued after a successful payment.
+
+It represents proof that a user has paid and must be included in subsequent requests to access protected methods.
+
+---
+
+### System Model
+
+Bindu’s payment system works as follows:
+
+1. A payment session is created
+2. The user completes payment via their wallet
+3. The transaction is confirmed on-chain
+4. Bindu verifies the transaction
+5. A payment token is issued
+6. The token is used to access protected methods
+
+---
+
+## Why X402?
+
+Traditional payment systems are not designed for autonomous agents.
+
+X402 enables:
+
+* Direct payments without intermediaries
+* On-chain verification of transactions
+* Native integration with agent workflows
+* No reliance on centralized payment providers
+
+### When to Use X402
+
+Use X402 when:
+
+* You need agent-to-agent or programmatic payments
+* You want verifiable, trustless transactions
+* You are building crypto-native applications
+
+Use traditional systems when:
+
+* You require fiat payments
+* You need subscriptions or recurring billing
+* You rely on centralized payment infrastructure
+
+---
 
 ## How It Works
 
@@ -16,37 +75,64 @@ sequenceDiagram
 
     Note over User,Agent: 1. Start Payment Session
     User->>Agent: POST /api/start-payment-session
-    Agent->>Agent: Create session (15 min expiry)
     Agent-->>User: {session_id, browser_url}
 
-    Note over User,Wallet: 2. Complete Payment in Browser
+    Note over User,Wallet: 2. Complete Payment
     User->>Agent: Open browser_url
-    Agent-->>User: Show paywall UI
-    User->>Wallet: Connect wallet (MetaMask/Coinbase)
-    Wallet-->>User: Wallet connected
+    User->>Wallet: Connect wallet
     User->>Wallet: Approve transaction
-    Wallet->>Blockchain: Submit USDC transfer
-    Blockchain-->>Wallet: Transaction confirmed
-    Wallet->>Agent: Send X-PAYMENT header<br/>(signed transaction)
-    Agent->>Agent: Store payment in session
+    Wallet->>Blockchain: Submit transaction
+    Blockchain-->>Wallet: Confirmed
 
     Note over User,Agent: 3. Verify Payment
-    User->>Agent: GET /api/payment-status/{session_id}
-    Agent->>Agent: Check session status
-    Agent-->>User: {status: completed, payment_token}
+    Wallet->>Agent: Send payment proof
+    Agent->>Blockchain: Verify transaction
+    Agent-->>User: payment_token
 
-    Note over User,Agent: 4. Use Protected Method
-    User->>Agent: POST / (JSON-RPC)<br/>X-Payment-Token: {token}
-    Agent->>Agent: Validate payment token
-    Agent->>Blockchain: Verify transaction on-chain<br/>(balance, signature)
-    Blockchain-->>Agent: Valid
-    Agent->>Agent: Execute protected method
+    Note over User,Agent: 4. Access Method
+    User->>Agent: Request with X-Payment-Token
     Agent-->>User: Response
 ```
 
+---
+
+## Quick Start
+
+1. Add `execution_cost` to your agent config
+2. Start your agent
+3. Call a protected method
+4. Complete payment in browser
+5. Use the returned payment token
+
+You now have a paid agent.
+
+---
+
+## Setup (Testing)
+
+If you're new to crypto, follow this section. Otherwise, skip to configuration.
+
+### 1. Create a Wallet
+
+* MetaMask (recommended)
+* Coinbase Wallet
+
+### 2. Get Test Funds
+
+* Get Base Sepolia ETH (for gas)
+* Obtain test USDC
+
+### 3. Set Your Wallet Address
+
+```python
+"pay_to_address": "0xYourWalletAddressHere"
+```
+
+---
+
 ## Configuration
 
-Add `execution_cost` to your agent config:
+### Single Payment Option
 
 ```python
 config = {
@@ -55,164 +141,179 @@ config = {
     "description": "An agent that requires payment",
     "deployment": {"url": "http://localhost:3773", "expose": True},
     "execution_cost": {
-        "amount": "$0.0001",           # Amount in USD (converted to USDC)
-        "token": "USDC",                # Token type
-        "network": "base-sepolia",      # Network (base-sepolia for testing)
-        "pay_to_address": "0x265<your-wallet-address>",
-        "protected_methods": [
-            "message/send"              # Methods requiring payment
-        ]
+        "amount": "$0.0001",
+        "token": "USDC",
+        "network": "base-sepolia",
+        "pay_to_address": "0xYourWalletAddressHere",
+        "protected_methods": ["message/send"]
     }
 }
 ```
 
-## Setup for Testing
+---
 
-### 1. Create a Crypto Wallet
+### Multiple Payment Options
 
-**MetaMask (Recommended):**
-1. Install [MetaMask browser extension](https://metamask.io/)
-2. Create a new wallet
-3. Copy your wallet address (starts with `0x...`)
-
-**Coinbase Wallet:**
-1. Install [Coinbase Wallet extension](https://www.coinbase.com/wallet)
-2. Set up your wallet
-3. Copy your wallet address
-
-### 2. Get Test USDC
-
-For Base Sepolia testnet:
-
-1. **Get Base Sepolia ETH** (for gas fees):
-   - Visit [Chainlink Faucet](https://faucets.chain.link/base-sepolia)
-   - Connect your wallet
-   - Request test ETH
-
-2. **Get Base Sepolia USDC**:
-   - The payment system will guide you through obtaining test USDC
-
-### 3. Update Agent Configuration
+You can provide multiple payment options. Any one of them satisfies access.
 
 ```python
-"pay_to_address": "0xYourWalletAddressHere"
-```
-
-## Payment Flow
-
-### Step 1: Start a Payment Session
-
-```bash
-curl --location --request POST 'http://localhost:3773/api/start-payment-session' \
---header 'Content-Type: application/json' \
---header 'Authorization: Bearer <your-access-token>'
-```
-
-**Response:**
-```json
-{
-    "session_id": "<session-id>",
-    "browser_url": "http://localhost:3773/payment-capture?session_id=<session-id>",
-    "expires_at": "<expires-at>",
-    "status": "pending"
-}
-```
-
-### Step 2: Complete Payment in Browser
-
-1. Open the `browser_url` in your browser
-2. Connect your wallet (MetaMask or Coinbase Wallet)
-3. Review payment details:
-   - Amount in USDC
-   - Recipient address
-   - Network (Base Sepolia)
-4. Approve and sign the transaction
-5. Wait for blockchain confirmation
-
-### Step 3: Verify Payment Status
-
-```bash
-curl --location 'http://localhost:3773/api/payment-status/<session_id>' \
---header 'Authorization: Bearer <your-access-token>'
-```
-
-**Response:**
-```json
-{
-    "session_id": "<session-id>",
-    "status": "completed",
-    "payment_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-### Step 4: Use the Agent with Payment Token
-
-```bash
-curl --location 'http://localhost:3773/' \
---header 'Content-Type: application/json' \
---header 'Authorization: Bearer <your-access-token>' \
---header 'X-Payment-Token: <payment-token>' \
---data '{
-    "jsonrpc": "2.0",
-    "method": "message/send",
-    "params": {
-        "message": {
-            "role": "user",
-            "content": "Hello, paid agent!"
+config = {
+    "execution_cost": [
+        {
+            "amount": "0.1",
+            "token": "USDC",
+            "network": "base",
+            "pay_to_address": "0xYourWalletAddressHere",
+        },
+        {
+            "amount": "0.0001",
+            "token": "ETH",
+            "network": "ethereum",
+            "pay_to_address": "0xYourWalletAddressHere",
         }
-    },
-    "id": 1
-}'
+    ]
+}
 ```
 
-## Example Implementation
+---
 
-See the complete example:
+## Payment Flow (Detailed)
+
+### 1. Start Payment Session
+
+```bash
+curl -X POST http://localhost:3773/api/start-payment-session \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>"
+```
+
+---
+
+### 2. Complete Payment
+
+* Open `browser_url`
+* Connect wallet
+* Approve transaction
+* Wait for blockchain confirmation
+
+---
+
+### 3. Verify Payment
+
+```bash
+curl http://localhost:3773/api/payment-status/<session_id>
+```
+
+Response:
+
+```json
+{
+  "status": "completed",
+  "payment_token": "<token>"
+}
+```
+
+---
+
+### 4. Call Protected Method
+
+```bash
+curl http://localhost:3773/ \
+  -H "X-Payment-Token: <token>" \
+  -d '{ "method": "message/send" }'
+```
+
+---
+
+## Payment Behavior
+
+* Each task requires a new payment
+* Tokens are task-specific and non-reusable
+* `input_required` steps do not require payment
+* Tokens expire after a short duration
+
+---
+
+## Trust & Verification
+
+Bindu verifies payments using blockchain data:
+
+* Validates transaction signature
+* Confirms sender and recipient addresses
+* Checks payment amount
+* Ensures transaction exists on-chain
+
+Only verified transactions result in token issuance.
+
+---
+
+## Security Model
+
+* Payment tokens are bound to sessions
+* Tokens are short-lived and expire automatically
+* Tokens cannot be reused across tasks
+* Duplicate or replay usage is prevented via session tracking
+
+---
+
+## UI Integration
+
+Bindu provides a built-in payment UI via `browser_url`.
+
+Typical frontend flow:
+
+1. Start payment session
+2. Redirect user to payment UI
+3. Wait for completion
+4. Retrieve `payment_token`
+5. Attach token to API requests
+
+---
+
+## Common Issues
+
+* Session expired → start a new session
+* Payment pending → wait for confirmation
+* Invalid token → ensure correct session
+* Wrong network → switch wallet network
+
+---
+
+## Production Deployment
+
+1. Switch to mainnet:
+
+```python
+"network": "base"
+```
+
+2. Use real USDC
+3. Set production wallet address
+4. Monitor incoming payments
+5. Adjust pricing
+
+---
+
+## Tips
+
+* Start with small amounts
+* Clearly communicate pricing
+* Handle failures gracefully
+* Clean expired sessions
+* Optimize user experience
+
+---
+
+## Example
+
 ```
 examples/beginner/echo_agent_behind_paywall.py
 ```
 
-## Payment Behavior
-
-- Each new task requires payment when the agent is behind a paywall
-- If a task returns `input_required` status, no payment is needed for that interaction
-- Once a task completes successfully, a new payment is required for the next task
-- Payment tokens are task-specific and cannot be reused
-
-## Security Considerations
-
-- **Wallet Security**: Never share private keys or seed phrases
-- **Test Networks**: Always test on Base Sepolia before mainnet
-- **Payment Verification**: Payments are verified on-chain via blockchain signatures
-- **Session Expiration**: Payment sessions expire after 60 seconds by default
-- **Token Storage**: Payment tokens are JWTs with expiration times
-
-## Production Deployment
-
-When ready for production:
-
-1. **Switch to Base Mainnet**:
-   ```python
-   "network": "base"  # Change from "base-sepolia"
-   ```
-
-2. **Use Real USDC**: Ensure users have actual USDC on Base mainnet
-
-3. **Update Wallet Address**: Use your production wallet address
-
-4. **Monitor Payments**: Track incoming payments to your wallet
-
-5. **Set Appropriate Pricing**: Adjust `amount` based on service value
-
-## Tips
-
-- **Start Small**: Use low amounts for testing (e.g., `$0.0001`)
-- **Clear Communication**: Inform users about payment requirements upfront
-- **Handle Failures**: Implement proper error handling for failed payments
-- **Session Management**: Clean up expired payment sessions regularly
-- **User Experience**: Provide clear instructions in your UI
+---
 
 ## Related
 
-- [X402 Protocol Specification](https://github.com/coinbase/x402)
-- [Base Sepolia Testnet](https://docs.base.org/network-information)
+* https://github.com/coinbase/x402
+* https://docs.base.org/network-information
+* ./AUTHENTICATION.md
