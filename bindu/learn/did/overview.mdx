@@ -1,58 +1,45 @@
 ---
 
 title: "Decentralized Identifiers (DIDs)"
-description: "Secure, verifiable identity for AI agents"
+description: "Secure, verifiable, and self-sovereign identity for AI agents"
 ---
 
-Bindu uses **Decentralized Identifiers (DIDs)** to give every AI agent a secure, verifiable, and permanent identity.
+API keys work fine when one platform owns the whole flow. They work a lot less well when agents talk to each other across different systems, teams, and networks.
 
-A DID works like a cryptographic passport for your agent. It proves who the agent is, everywhere, without relying on any platform or central authority.
+Here’s the catch. In a decentralized Agent-to-Agent setup, identity should not disappear because a provider is down, a dashboard changes, or one integration gets revoked. If an agent sends a payment instruction or a sensitive payload, the receiver needs a way to verify who sent it without trusting a central service.
 
-A DID allows your agent to prove its identity and make its responses verifiable by anyone.
+## Why Agent Identity Needs A Better Model
 
----
+Most agent systems still inherit the assumptions of centralized SaaS:
 
-## What is a DID?
+- Identity is issued by a provider
+- Trust is delegated to a platform
+- Secrets are copied across environments
+- Verification depends on infrastructure someone else controls
 
-A **Decentralized Identifier (DID)** is a globally unique identifier that:
+In a decentralized network, that is not enough. An agent needs an identity that survives platform changes, crosses system boundaries, and can be verified cryptographically by anyone who receives a message.
 
-* Does not require a central authority
-* Is backed by public/private key cryptography
-* Remains persistent over time
-* Enables direct, trustless verification
+<Note>
+If one agent sends a high-value payload to another, the receiving system should not have to trust a vendor, a dashboard, or a hostname. It should be able to verify the sender mathematically.
+</Note>
 
----
+## What We Actually Need
 
-## Why DIDs Matter
+Bindu gives each agent a self-sovereign cryptographic identity that is:
 
-Most systems today rely on platform-controlled identity:
+- Globally unique
+- Independent of a central authority
+- Backed by public/private key cryptography
+- Persistent across platforms and time
+- Verifiable by any participant in the network
 
-* Identity is owned by companies
-* Accounts can be deleted or suspended
-* It’s easy to impersonate agents
-* There is no strong proof of authenticity
+That identity is a **Decentralized Identifier (DID)**.
 
-DIDs solve these problems:
+## How Bindu DIDs Work
 
-* You own your agent’s identity
-* Identity can be verified using cryptography
-* It works across platforms
-* It cannot be taken away or reassigned
+Bindu uses **Decentralized Identifiers (DIDs)** to provide secure, verifiable, and self-sovereign identity for AI agents. Each agent gets a unique DID that serves as its cryptographic identity across the network.
 
-You don’t need to trust the platform — you can verify everything yourself.
-
----
-
-## What You Can Do With DIDs
-
-* Verify that AI responses are authentic
-* Build secure multi-agent systems
-* Enable direct trust between agents
-* Support payments, identity, and audit flows
-
----
-
-## DID Format
+### The W3C Format
 
 Bindu uses a readable DID structure:
 
@@ -66,21 +53,72 @@ Example:
 did:bindu:gaurikasethi88_at_gmail_com:echo_agent:352c17d030fb4bf1ab33d04b102aef3d
 ```
 
-This identifier is unique to each agent and is used across the network.
+The structure is readable to developers and precise for machines:
 
----
+- `did` declares the identifier type
+- `bindu` is the DID method
+- `<email>` and `<agent_name>` make the identity human-legible
+- `<unique_hash>` ensures uniqueness at the cryptographic edge
 
-## How It Works
+<CardGroup cols={3}>
+  <Card title="Self-Sovereign" icon="fingerprint">
+    No single provider owns the identity or decides whether it is valid.
+  </Card>
+  <Card title="Verifiable" icon="shield-check">
+    Public keys in the DID Document let any verifier check signatures independently.
+  </Card>
+  <Card title="Persistent" icon="globe">
+    The DID remains the agent's identity across deployments, integrations, and time.
+  </Card>
+</CardGroup>
 
-1. The agent generates a key pair (private and public keys)
-2. A DID is created from that identity
-3. The public key is published to the network
-4. Anyone can resolve the DID to retrieve the public key
-5. Messages are signed and verified using cryptography
+### The Lifecycle: Creation, Registration, Resolution
 
----
+Under the hood, every Bindu DID moves through three practical stages:
 
-## DID Resolution
+1. **Creation**: `bindufy()` generates the agent identity and its Ed25519 key material.
+2. **Registration**: the running Bindu agent publishes that identity as part of its verifiable network presence.
+3. **Resolution**: other systems request the DID Document and inspect its public verification data.
+
+```mermaid
+sequenceDiagram
+    participant Developer
+    participant Bindu
+    participant Agent
+    participant Resolver
+
+    Note over Developer,Agent: 1. Creation
+    Developer->>Bindu: bindufy(config, handler)
+    Bindu->>Bindu: Generate DID + Ed25519 key pair
+    Bindu-->>Developer: did:bindu:...
+
+    Note over Bindu,Agent: 2. Registration
+    Bindu->>Agent: Attach DID identity to running agent
+    Agent-->>Agent: Publish DID-aware agent presence
+
+    Note over Resolver,Agent: 3. Resolution
+    Resolver->>Agent: POST /did/resolve
+    Agent-->>Resolver: DID Document with publicKeyBase58
+```
+
+### Creation Is Frictionless
+
+When you create a Bindu agent, a DID is automatically generated:
+
+```python
+config = {
+    "author": "your.email@example.com",
+    "name": "my_agent",
+    "description": "My AI agent"
+}
+
+bindufy(config, handler)
+# DID generated: did:bindu:your_email_at_example_com:my_agent:<hash>
+```
+
+Think of it like this: `bindufy()` does the identity setup for you, so you do not have to manage key generation and DID wiring by hand.
+
+### Resolution Is Explicit
 
 You can retrieve an agent’s public identity (DID Document) using:
 
@@ -92,9 +130,11 @@ curl -X POST http://localhost:3773/did/resolve \
   }'
 ```
 
----
+Resolution gives any participant the public metadata needed to verify the agent.
 
-## DID Document
+### DID Document Structure
+
+The DID Document is the public record behind the identifier:
 
 ```json
 {
@@ -135,59 +175,75 @@ Agents sign responses with their private key. The signature is included in task 
 }
 ```
 
-This ensures:
+Each field has a specific job:
 
-* The message came from the correct agent
-* The content has not been altered
-* The agent cannot deny sending it
+- `@context` anchors the document in the W3C DID data model plus Bindu's namespace
+- `id` is the canonical DID for the agent
+- `created` records when the identity was established
+- `authentication` lists the verification methods used to prove control of the DID
+- `publicKeyBase58` exposes the public key in Base58 form for signature verification
 
-For example, when an agent answers a question, the response can be verified to ensure it actually came from that agent.
+<Note>
+Bindu uses the `Ed25519VerificationKey2020` verification method. That gives agents compact, fast public-key signatures that fit machine-to-machine traffic well.
+</Note>
 
----
+### Standards
 
-## DID Generation
+<CardGroup cols={3}>
+  <Card title="W3C DID Core" icon="book-open" href="https://www.w3.org/TR/did-core/">
+    The core data model and rules that define how decentralized identifiers work.
+  </Card>
+  <Card title="DID Method Registry" icon="list-tree" href="https://www.w3.org/TR/did-spec-registries/">
+    The registry for DID methods and related verification method conventions.
+  </Card>
+  <Card title="Ed25519 / RFC 8032" icon="key-round">
+    The signature scheme Bindu uses for agent identity and message verification.
+  </Card>
+</CardGroup>
 
-A DID is created automatically when you build an agent:
+## What You Get From Signing
 
-```python
-config = {
-  "author": "your.email@example.com",
-  "name": "my_agent",
-  "description": "My AI agent"
-}
-
-bindufy(config, handler)
-```
-
-No manual setup is required.
+Identity only matters if it holds up when a message is received, checked, and acted on.
 
 ---
 
 ## Security Best Practices
 
-Your private key represents your agent’s identity.
+This signature proves:
 
-* Do not expose it
-* Do not store it in code or version control
-* Store it securely and keep backups
+- **Authenticity** - Message came from the agent with this DID
+- **Integrity** - Message hasn't been tampered with
+- **Non-repudiation** - Agent cannot deny sending the message
 
-Recommended practices:
+This is the point of the whole model: trust becomes a verification step instead of an assumption.
 
-* Rotate keys periodically (every 90–180 days)
-* Update keys after team or access changes
-* Use secure storage systems
+## Real-World Use Cases
 
----
+<AccordionGroup>
+  <Accordion title="Agent-to-agent financial workflows">
+    When an agent submits payment instructions, quotes, or settlement data, the receiving system can verify exactly which DID signed the payload before executing a high-value action.
+  </Accordion>
+  <Accordion title="Cross-organization agent collaboration">
+    Teams can run agents across different clouds, companies, and security boundaries while preserving verifiable identity without relying on one shared platform authority.
+  </Accordion>
+  <Accordion title="Auditable automation in regulated systems">
+    Signed outputs create a stronger audit trail for environments where provenance matters, including finance, healthcare, and enterprise workflow approval chains.
+  </Accordion>
+  <Accordion title="Agent discovery with trust attached">
+    A DID alone is not just an address. Once resolved to a DID Document, it becomes a trust anchor that other agents and services can inspect before they communicate.
+  </Accordion>
+</AccordionGroup>
 
-## Standards
+## Security Best Practices
 
-Bindu follows established standards:
-
-* W3C DID Core Specification
-* DID Method Registry
-* Ed25519 signature scheme (RFC 8032)
-
----
+<CardGroup cols={2}>
+  <Card title="Protect Private Keys" icon="lock">
+    Never hardcode keys in code. Don't commit keys to version control. Use secure key storage solutions. Back up keys securely.
+  </Card>
+  <Card title="Rotate Keys Deliberately" icon="refresh-cw">
+    Rotate keys every 90-180 days. Update after team changes. Follow compliance requirements.
+  </Card>
+</CardGroup>
 
 ## Related
 
