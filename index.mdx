@@ -446,57 +446,65 @@ export const codeTabs = [
       </p>
 
       <div className="mt-12 grid w-full max-w-5xl grid-cols-1 gap-4 md:grid-cols-3">
-        <a
-          href="/bindu/introduction/what-is-bindu"
-          className="group relative flex flex-col gap-2 rounded-xl bg-[#f6f7f9] dark:bg-zinc-900 border border-[#e5e7eb] dark:border-zinc-700 p-5 transition hover:border-[#e5e7eb] dark:hover:border-zinc-600"
-        >
-          <span className="pointer-events-none absolute -left-2 -top-2 h-4 w-4 border-l-2 border-t-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-          <span className="pointer-events-none absolute -right-2 -top-2 h-4 w-4 border-r-2 border-t-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-          <span className="pointer-events-none absolute -bottom-2 -left-2 h-4 w-4 border-b-2 border-l-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-          <span className="pointer-events-none absolute -bottom-2 -right-2 h-4 w-4 border-b-2 border-r-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-
-          <h3 className="text-base font-semibold text-start text-zinc-900 dark:text-zinc-100">
+       <a
+        href="/bindu/introduction/what-is-bindu"
+        className="group relative flex flex-col gap-2 overflow-hidden rounded-xl border-2 border-zinc-200 bg-gradient-to-b from-white to-[#f6f7f9] p-5 transition-all duration-300 hover:border-[#8B5CF6]/40 hover:shadow-lg dark:border-zinc-800 dark:bg-gradient-to-b dark:from-zinc-800 dark:to-zinc-900 dark:hover:border-[#8B5CF6]/50"
+      >
+        {/* The Glare Sweep Element */}
+        <div className="absolute inset-0 z-0 flex transform justify-center pointer-events-none">
+          <div className="h-full w-24 -translate-x-[250%] skew-x-[-25deg] bg-gradient-to-r from-transparent via-[#8B5CF6]/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[250%] dark:via-[#8B5CF6]/20" />
+        </div>
+        
+        {/* Content (Z-10 keeps it above the glare) */}
+        <div className="relative z-10">
+          <h3 className="text-base font-semibold text-zinc-900 transition-colors dark:text-zinc-100">
             Get Started
           </h3>
-          <p className="text-xs leading-relaxed text-start text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
             Learn the core concepts and build your first A2A protocol agent.
           </p>
-        </a>
+        </div>
+      </a>
 
-        <a
+       <a
           href="/bindu/grpc/overview"
-          className="group relative flex flex-col gap-2 rounded-xl border border-[#e5e7eb] dark:border-zinc-700 bg-[#f6f7f9] dark:bg-zinc-900 p-5 transition hover:border-[#e5e7eb] dark:hover:border-zinc-600"
+          className="group relative flex flex-col gap-2 overflow-hidden rounded-xl border-2 border-zinc-200 bg-gradient-to-b from-white to-[#f6f7f9] p-5 transition-all duration-300 hover:border-[#8B5CF6]/40 hover:shadow-lg dark:border-zinc-800 dark:bg-gradient-to-b dark:from-zinc-800 dark:to-zinc-900 dark:hover:border-[#8B5CF6]/50"
         >
-          <span className="pointer-events-none absolute -left-2 -top-2 h-4 w-4 border-l-2 border-t-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-          <span className="pointer-events-none absolute -right-2 -top-2 h-4 w-4 border-r-2 border-t-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-          <span className="pointer-events-none absolute -bottom-2 -left-2 h-4 w-4 border-b-2 border-l-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-          <span className="pointer-events-none absolute -bottom-2 -right-2 h-4 w-4 border-b-2 border-r-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-
-          <h3 className="text-base font-semibold text-start text-zinc-900 dark:text-zinc-100">
-            The Sidecar Architecture
-          </h3>
-          <p className="text-xs leading-relaxed text-start text-zinc-500 dark:text-zinc-400">
-            Write agent logic in any language while the Python core handles
-            infrastructure.
-          </p>
+          {/* The Glare Sweep Element */}
+          <div className="absolute inset-0 z-0 flex transform justify-center pointer-events-none">
+            <div className="h-full w-24 -translate-x-[250%] skew-x-[-25deg] bg-gradient-to-r from-transparent via-[#8B5CF6]/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[250%] dark:via-[#8B5CF6]/20" />
+          </div>
+          
+          {/* Content (Z-10 keeps it above the glare) */}
+          <div className="relative z-10">
+            <h3 className="text-base font-semibold text-zinc-900 transition-colors dark:text-zinc-100">
+              The Sidecar Architecture
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+              Write agent logic in any language while the Python core handles
+              infrastructure.
+            </p>
+          </div>
         </a>
 
         <a
           href="/examples/beginner/echo-agent"
-          className="group relative flex flex-col gap-2 rounded-xl border border-[#e5e7eb] dark:border-zinc-700 bg-[#f6f7f9] dark:bg-zinc-900 p-5 transition hover:border-[#e5e7eb] dark:hover:border-zinc-600"
+          className="group relative flex flex-col gap-2 overflow-hidden rounded-xl border-2 border-zinc-200 bg-gradient-to-b from-white to-[#f6f7f9] p-5 transition-all duration-300 hover:border-[#8B5CF6]/40 hover:shadow-lg dark:border-zinc-800 dark:bg-gradient-to-b dark:from-zinc-800 dark:to-zinc-900 dark:hover:border-[#8B5CF6]/50"
         >
-          <span className="pointer-events-none absolute -left-2 -top-2 h-4 w-4 border-l-2 border-t-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-          <span className="pointer-events-none absolute -right-2 -top-2 h-4 w-4 border-r-2 border-t-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-          <span className="pointer-events-none absolute -bottom-2 -left-2 h-4 w-4 border-b-2 border-l-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-          <span className="pointer-events-none absolute -bottom-2 -right-2 h-4 w-4 border-b-2 border-r-2 border-[#8B5CF6] opacity-0 transition-opacity group-hover:opacity-100" />
-
-          <h3 className="text-base font-semibold text-start text-zinc-900 dark:text-zinc-100">
-            Ecosystem & Cookbook
-          </h3>
-          <p className="text-xs leading-relaxed text-start text-zinc-500 dark:text-zinc-400">
-            Explore production patterns, from basic agents to multi-agent
-            swarms.
-          </p>
+          {/* The Glare Sweep Element */}
+          <div className="absolute inset-0 z-0 flex transform justify-center pointer-events-none">
+            <div className="h-full w-24 -translate-x-[250%] skew-x-[-25deg] bg-gradient-to-r from-transparent via-[#8B5CF6]/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[250%] dark:via-[#8B5CF6]/20" />
+          </div>
+          
+          {/* Content (Z-10 keeps it above the glare) */}
+          <div className="relative z-10">
+            <h3 className="text-base font-semibold text-zinc-900 transition-colors dark:text-zinc-100">
+              Changelog & Examples
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+              Explore production patterns, from basic agents to multi-agent swarms.
+            </p>
+          </div>
         </a>
       </div>
     </section>
