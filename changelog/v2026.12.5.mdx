@@ -1,313 +1,89 @@
 ---
-title: 'v2026.12.5 - Document Analyzer & Reliability Improvements'
-description: 'Document analysis, payment robustness, scheduler and storage reliability, and usability improvements'
+title: "v2026.12.5"
+description: "Document analysis, payment robustness, scheduler and storage reliability, and usability improvements"
+date: "2026-03-19"
 ---
 
-## Overview
+## Document Analyzer and Reliability Improvements
 
-Maintenance and feature release focused on document analysis, payment robustness, scheduler and storage reliability, and usability improvements across the UI and configuration. This release also introduces a DSPy agent example, structured LangGraph workflow integration, and multiple accessibility and documentation enhancements contributed by the community.
-
-**Version:** 2026.12.5  
-**Date:** March 19, 2026
-
----
-
-## Problem Solved
-
-### Before this release
-- ❌ Document analyzer examples did not consistently propagate extracted text into `FilePart.text`, making downstream processing and testing harder
-- ❌ Scheduler and storage subsystems had edge‑case issues (AnyIO deadlock, CPU burn, potential OOMs) and inconsistent formatting
-- ❌ Multi‑currency and multi‑asset payment flows were harder to configure safely, leading to possible duplicate or partial payment contexts
-- ❌ Several examples and configs had missing dependencies or unclear requirements, increasing setup friction for new users
-
-### After this release
-- ✅ Document analyzer reliably preserves `FilePart.text`, supports PDF/DOCX mimetypes, and ships with dedicated tests
-- ✅ Storage, scheduler, Hydra middleware, and TaskManager are hardened with improved error handling and concurrency safety
-- ✅ Payment features seamlessly support multiple currencies and multi‑asset requirements with strict context validation
-- ✅ Examples and docs are updated with DSPy, LangGraph workflows, explicit API key prerequisites, and improved READMEs
+This is a broad release touching several systems. The headline features are a new document analyzer agent, multi-currency payment support, and fixes to scheduler deadlocks and storage memory pressure. The auth middleware was rewritten as pure ASGI, the UI got accessibility improvements, and 44 new tests were added.
 
 ---
 
-## Breaking Changes
+## What You Need to Change
 
 <Warning>
-**Stricter Configuration Validation**
-- **Impact:** Previously misconfigured deployments missing a `deployment.url` or nested fields will now fail fast on boot instead of failing silently later
-- **Migration:** Ensure your `agent_config.json` includes all strictly required deployment routing fields
+**Stricter configuration validation.** Deployments missing `deployment.url` or nested required fields will now fail fast on startup instead of failing silently later. Make sure your `agent_config.json` includes all required deployment fields.
 </Warning>
 
 <Warning>
-**Constants Reorganization**
-- **Impact:** Example projects relying on older, deeply imported constants may fail to import
-- **Migration:** Update your imports to use the new dedicated constants modules
+**Constants reorganized.** If you import constants from deeply nested paths in the extensions modules, check that your imports still resolve. Key settings moved to dedicated constants modules.
 </Warning>
 
 ---
 
-## Features
+## What's New
 
-### 📄 Document Analyzer Agent & Frontend Integration
-- Adds a dedicated document analyzer agent with skills wiring and workflow examples for document processing
-- Frontend explicitly allows PDF and DOCX mimetypes and handles animated formats appropriately
-- Ensures uploaded `FilePart` objects preserve the `text` property so downstream handlers can operate on content
-- Includes dedicated `.env` and `skill.yaml` files for immediate plug-and-play usage
+### Document Analyzer Agent
 
-### 🤖 DSPy Agent & Structured LangGraph Workflows
-- Introduces a new DSPy agent example in `examples/beginner/` demonstrating question-answering behavior
-- Adds comprehensive unit tests for the DSPy example to validate behavior and guard against regressions
-- Integrates a structured LangGraph workflow example to showcase advanced orchestration patterns within Bindu
+A new document analyzer agent with skills wiring and workflow examples for processing PDF and DOCX files. The frontend restricts uploads to allowed mimetypes and ensures `FilePart.text` is preserved through the pipeline so downstream handlers can operate on the extracted content.
 
-### 💳 Payments & Multi‑Currency Support
-- Extends payment logic allowing agents to accept multiple payment currencies in a single configuration
-- Implements multi‑asset payment requirements with improved payment context validation
-- Fixes duplicate payment context injection in the A2A message/send endpoint
-- Prevents 500 Server Errors when payment states are only partially set or malformed
+### Multi-Currency Payments
 
-### 🗄️ Storage, Scheduler, and Auth Reliability
-- Refactors the storage layer to harden the in‑memory subsystem, reduce OOM risks, and optimize database indexing
-- Fixes scheduler behavior to resolve AnyIO buffer deadlocks, CPU burn loops, and trace serialization issues
-- Migrates Hydra auth middleware to a pure ASGI implementation for concurrency, WebSocket support, and lifecycle handling
+The payment system now supports multiple currencies and multi-asset requirements in a single configuration. Payment context validation was tightened to prevent duplicate injection and partial state corruption. The A2A `message/send` endpoint no longer returns 500 errors when payment states are malformed.
 
-### 🎨 UI & Accessibility Enhancements
-- Introduces a collapsible Agent Inspector with clearer empty states for a better first-agent experience
-- Adds skip‑to‑content links and main landmarks to improve screen-reader accessibility and keyboard navigation
-- Eliminates UI flicker when switching between previous chats, improving perceived responsiveness
+### DSPy and LangGraph Examples
 
-### ⚙️ Configuration & Validation Improvements
-- Adds fail‑fast validation for required `deployment.url` in agent configuration
-- Improves nested required field validation with much clearer developer error messages
-- Moves key settings constants into dedicated modules to clarify configuration boundaries
+A new DSPy agent example demonstrates question-answering behavior with comprehensive unit tests. A LangGraph structured workflow example shows advanced orchestration patterns within Bindu.
 
-### 📚 Documentation Updates
-- Refreshes README with improved visuals (header/footer, quotes) and clearer getting-started guidance
-- Documents API key prerequisites (including in the Hindi README) to ensure external providers are configured correctly
-- Refreshes `.env` examples to reflect newer dependencies (e.g., OpenRouter)
-- Fixes broken links in translated READMEs and aligns license/test‑coverage docs
+### UI and Accessibility
 
-### 🧪 Testing & Code Quality
-- Expands `TaskManager` tests to cover edge cases, lifecycles, and security scenarios
-- Adds robust tests for `TaskHandlers`, `ContextHandlers`, `MessageHandlers`, and A2A payment validations
-- Cleans up legacy styling, trailing whitespaces, docstrings, and makes Coveralls upload non-blocking
+A collapsible Agent Inspector with clearer empty states improves the first-agent experience. Skip-to-content links and ARIA landmarks improve screen reader navigation. Visual flicker when switching between previous chats has been eliminated.
 
 ---
 
-## Technical Details
+## What's Fixed
 
-### Document Analyzer Flow
+**Scheduler** — Resolved AnyIO buffer deadlocks, CPU burn loops in edge cases, and trace serialization failures with large payloads.
 
-1. Frontend restricts file uploads to strictly allowed mimetypes (PDF, DOCX)
-2. Uploaded file parts are preserved in transport, explicitly keeping `FilePart.text` intact
-3. Backend analyzer extracts the text and injects it into the pipeline for downstream handlers
+**Storage** — Hardened the in-memory subsystem to reduce OOM risks and optimized database indexing.
 
-### Payment & Context Handling
+**Auth middleware** — Migrated the Hydra middleware from synchronous to pure ASGI. This improves concurrency, adds WebSocket support, and properly manages connection lifecycle to prevent resource leaks.
 
-- Payment contexts now natively support arrays of multi-currency and multi-asset requirements
-- The A2A routing layer guarantees the payment context is injected exactly once and stripped when not needed, preventing duplicate state data
-
-### Scheduler & Storage Behavior
-
-- The scheduler loop execution now safely avoids AnyIO buffer deadlocks and busy‑loop CPU consumption
-- Trace serialization is restructured to safely handle massive or complex trace payloads without failing
-
-### Auth Middleware
-
-- The Hydra middleware bypasses the synchronous event loop and runs as Pure ASGI
-- Stream lifecycle handlers strictly manage connection drops to prevent resource leaks in concurrent environments
+**Configuration** — Added fail-fast validation for `deployment.url` with much clearer error messages for missing nested required fields.
 
 ---
 
-## Configuration
+## What's Improved
 
-### Environment Variables
+### Test Coverage
 
-```bash
-# Agent Deployment URL is now strictly validated
-DEPLOYMENT__URL=http://localhost:3773
+44 new tests were added across critical components:
 
-# Required for the DSPy / Document Analyzer examples
-OPENROUTER_API_KEY=sk-or-v1-...
-```
+- **ManifestWorker** (+15 tests) — Task execution flows, payment context integration, error handling, system message injection. Coverage: 58% → 83%.
+- **BinduApplication** (+20 tests) — Configuration validation, custom setup, debug mode, CORS, authentication. Coverage: 16% → 30%.
+- **TaskManager** (+9 tests) — Context manager, storage/scheduler attributes, push manager initialization. Coverage: 67% → 75%.
+
+Overall coverage improved from 58.59% to 60.11% with 688 tests passing.
 
 ---
 
-## Migration Guide
-
-### For Existing Deployments
+## Migration
 
 <Steps>
-  <Step title="Review agent configurations">
-    Ensure `deployment.url` is properly set in your `agent_config.json`
+  <Step title="Check your config">
+    Ensure `deployment.url` is properly set. The validator is now strict about this.
   </Step>
-
-  <Step title="Update payment configurations">
-    Confirm any custom payment configurations map correctly to the new multi-currency validation rules
+  <Step title="Update payment configs">
+    If you use custom payment configurations, verify they map correctly to the new multi-currency validation rules.
   </Step>
-
   <Step title="Rebase custom extensions">
-    If you use custom scheduler, storage, or Hydra auth extensions, rebase your forks onto the new modules to inherit the deadlock and ASGI safety fixes
+    If you maintain forks of the scheduler, storage, or Hydra auth modules, rebase onto this release to pick up the deadlock and ASGI safety fixes.
   </Step>
 </Steps>
-
-### For New Deployments
-
-<Steps>
-  <Step title="Use new templates">
-    Use the new DSPy, LangGraph, or Document Analyzer templates to bootstrap advanced agents
-  </Step>
-
-  <Step title="Configure environment">
-    Base your initial `.env` and `skill.yaml` files strictly on the newly provided examples to ensure all API prerequisites are satisfied
-  </Step>
-
-  <Step title="Review documentation">
-    Consult the updated API prerequisites section in the README
-  </Step>
-</Steps>
-
----
-
-## Security Considerations
-
-<Warning>
-**Security Enhancements**
-- Pure ASGI Hydra middleware significantly reduces the attack surface for slowloris/DoS attacks
-- Tightened exception blocks prevent the system from swallowing errors and masking hidden failures
-- Strict payment context validation prevents bad actors from spoofing billing or corrupting payment states
-</Warning>
-
----
-
-## Performance Impact
-
-- **CPU:** Eliminated busy-wait loops in the scheduler during edge cases, vastly reducing idle CPU overhead
-- **Memory:** Storage refactors reduce RAM pressure on massive datasets via optimized DB indexing
-- **UX:** Rendering performance improved by eliminating visual flicker during chat history navigation
-
----
-
-## Testing
-
-<Check>Unit tests for TaskManager edge cases, lifecycle, and security behavior</Check>
-<Check>Tests for TaskHandlers, ContextHandlers, MessageHandlers, and A2A payment validations</Check>
-<Check>Document analyzer tests for file‑part text propagation and mimetype handling</Check>
-<Check>Additional tests for auth, configuration validation, and example dependencies</Check>
-<Check>All existing test suites updated and passing</Check>
-
----
-
-## Test Coverage Improvements
-
-Major expansion of test coverage and code quality improvements:
-
-### Coverage Metrics
-- **Increased from 58.59% to 60.11%** (+1.52% improvement)
-- **Total:** 688 tests passing with 7 warnings
-- Coverage threshold adjusted from 64% to 60% for realistic targets
-
-### New Tests Added (44 total)
-
-**ManifestWorker: +15 comprehensive async tests**
-- Task execution flows (basic, input-required, auth-required)
-- Payment context integration and settlement
-- Agent error handling and recovery
-- System message injection with structured responses
-- Context-based history building
-- Coverage improved: 58.29% → 82.89% (+24.6%)
-
-**BinduApplication: +20 initialization tests**
-- Configuration validation (storage, scheduler, telemetry, Sentry)
-- Custom penguin_id, URL, port, version handling
-- Debug mode, CORS origins, authentication setup
-- Default values and attribute initialization
-- Coverage improved: 16.37% → ~30%
-
-**TaskManager: +9 tests**
-- Context manager functionality
-- Storage and scheduler attribute handling
-- Push manager initialization
-- Manifest handling with None values
-- Coverage improved: 66.67% → ~75%
-
-### Code Quality Fixes
-- Fixed 11 type checking errors with proper TaskSendParams typing
-- Added missing docstrings to test builder classes (TaskBuilder, MessageBuilder, ContextBuilder, ArtifactBuilder)
-- Improved docstring formatting (imperative mood, removed extra blank lines)
-- Removed unused imports (AsyncMock, patch, pytest)
-- Added UUID import for proper type annotations
-- Updated `.secrets.baseline` for test fixtures
-
-### Pre-commit Checks
-<Check>All checks passing: ruff, type checking (ty), pydocstyle, bandit, secrets baseline</Check>
-<Check>YAML validation, trailing whitespace, end of files</Check>
-<Check>Pytest with coverage (60%+ requirement met)</Check>
-
----
-
-## Files Changed
-
-### New Files
-- Document analyzer agent codebase, `skill.yaml`, and `.env.example`
-- `examples/beginner/dspy_example.py` (and associated unit tests)
-- LangGraph structured workflow example
-
-### Modified Files
-- Scheduler and storage modules (deadlock/OOM hotfixes)
-- Hydra auth middleware (ASGI migration)
-- Payment/A2A handlers (multi-currency handling)
-- UI components (Agent Inspector, flicker fix, ARIA attributes)
-- Configuration validation (deployment checks, constants refactoring)
-- All localized `README.md` variations
 
 ---
 
 ## Contributors
 
-Special thanks to all contributors who made this release possible:
-
-- Paraschamoli
-- chandan-1427
-- varshayadav6
-- codesoumya2006
-- Prateekiiitg56
-- Co-vengers
-- nexpectArpit
-- AseemPrasad
-- shrguhaneogi-pixel
-- udaykiran243
-- arnab2001
-- Suvam-paul145
-- Subhajitdas99
-- DeviPadmavathi-LE
-- PardhaviArimilli
-- A-VISHAL
-- amr1tanshu
-- underratedgitter
-
----
-
-## Benefits
-
-### 📄 Enhanced Document Processing
-- Reliable text extraction from PDF and DOCX files
-- Consistent `FilePart.text` propagation for downstream handlers
-- Production-ready document analyzer agent
-
-### 💪 Improved Reliability
-- Eliminated scheduler deadlocks and CPU burn issues
-- Hardened storage layer with better memory management
-- Pure ASGI auth middleware for better concurrency
-
-### 💳 Robust Payment Handling
-- Multi-currency and multi-asset support
-- Strict validation prevents payment context corruption
-- No more duplicate payment context injection
-
-### ♿ Better Accessibility
-- Screen-reader friendly navigation
-- Keyboard accessibility improvements
-- Improved UI responsiveness
-
-### 🧪 Higher Code Quality
-- 44 new tests across critical components
-- +1.52% test coverage improvement
-- Better type safety and documentation
+Thanks to Paraschamoli, chandan-1427, varshayadav6, codesoumya2006, Prateekiiitg56, Co-vengers, nexpectArpit, AseemPrasad, shrguhaneogi-pixel, udaykiran243, arnab2001, Suvam-paul145, Subhajitdas99, DeviPadmavathi-LE, PardhaviArimilli, A-VISHAL, amr1tanshu, and underratedgitter.
