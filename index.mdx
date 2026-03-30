@@ -9,104 +9,188 @@ export const CodeTabs = ({ tabs, defaultTab }) => {
   const currentTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="flex flex-col gap-5 w-full">
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        .code-tab-btn {
-          padding: 0;
-          border: none;
-          background: transparent;
-          cursor: pointer;
-          font-family: inherit;
-          font-size: 14px;
-          transition: color 0.2s ease;
-          color: #71717a;
-          font-weight: 400;
-        }
-        .code-tab-btn.active {
-          color: #18181b;
-          font-weight: 600;
-        }
-        .dark .code-tab-btn.active {
-          color: #f4f4f5;
-        }
-        .code-tab-bracket {
-          margin-right: 4px;
-          visibility: hidden;
-        }
-        .code-tab-bracket-right {
-          margin-left: 4px;
-          visibility: hidden;
-        }
-        .code-tab-btn.active .code-tab-bracket,
-        .code-tab-btn.active .code-tab-bracket-right {
-          visibility: visible;
-        }
-      `,
-        }}
-      />
-      <div className="grid grid-cols-2 gap-4 md:flex md:gap-8 justify-center">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={isActive ? "code-tab-btn active" : "code-tab-btn"}
-            >
-              <span className="code-tab-bracket">[</span>
-              {tab.label}
-              <span className="code-tab-bracket-right">]</span>
-            </button>
-          );
-        })}
-      </div>
+            .code-tabs-shell {
+              overflow: hidden;
+              border-radius: 18px;
+              border: 1px solid rgba(255,255,255,0.06);
+              background: #111113;
+              box-shadow:
+                0 20px 40px rgba(0,0,0,0.22),
+                0 1px 0 rgba(255,255,255,0.03) inset;
+            }
 
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-        .code-box {
-          position: relative;
-          border-radius: 16px;
-          border: 1px solid #27272a;
-          background: #09090b;
-          padding: 20px;
-          overflow: auto;
-        }
-        .code-box pre {
-          margin: 0;
-          padding: 0;
-          overflow: auto;
-          font-size: 13px;
-          line-height: 1.8;
-          font-family: "JetBrains Mono", "Fira Code", Monaco, Consolas, monospace;
-        }
-        .code-box code {
-          color: #e5e7eb;
-          white-space: pre;
-        }
-        .code-lang {
-          display: block;
-          font-size: 10px;
-          text-transform: uppercase;
-          letter-spacing: 0.15em;
-          color: #8B5CF6;
-          margin-bottom: 16px;
-          font-weight: 600;
-        }
-      `,
+            .code-tabs-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 16px;
+              padding: 12px 16px;
+              background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0.05),
+                rgba(255,255,255,0.02)
+              );
+              border-bottom: 1px solid rgba(255,255,255,0.05);
+            }
+
+            .code-tabs-topbar {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              min-width: 72px;
+            }
+
+            .code-tabs-dot {
+              width: 11px;
+              height: 11px;
+              border-radius: 999px;
+              box-shadow: inset 0 1px 1px rgba(255,255,255,0.25);
+            }
+
+            .code-tabs-dot.red {
+              background: #ff5f57;
+            }
+
+            .code-tabs-dot.yellow {
+              background: #febc2e;
+            }
+
+            .code-tabs-dot.green {
+              background: #28c840;
+            }
+
+            .code-tabs-nav {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              flex-wrap: wrap;
+              justify-content: center;
+              flex: 1;
+            }
+
+            .code-tab-btn {
+              border: none;
+              background: transparent;
+              color: rgba(255,255,255,0.42);
+              padding: 7px 12px;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: 500;
+              transition: all 0.2s ease;
+            }
+
+            .code-tab-btn:hover {
+              color: rgba(255,255,255,0.75);
+              background: rgba(255,255,255,0.04);
+            }
+
+            .code-tab-btn.active {
+              color: #ffffff;
+              background: rgba(255,255,255,0.08);
+              box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.05),
+                0 4px 10px rgba(0,0,0,0.18);
+            }
+
+            .code-lang {
+              min-width: 72px;
+              text-align: right;
+              color: rgba(255,255,255,0.28);
+              font-size: 11px;
+              font-weight: 600;
+              letter-spacing: 0.16em;
+              text-transform: uppercase;
+            }
+
+            .code-box {
+              position: relative;
+              padding: 24px;
+              overflow-x: auto;
+            }
+
+            .code-box::before {
+              content: "";
+              position: absolute;
+              inset: 0;
+              background-image:
+                linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+              background-size: 28px 28px;
+              pointer-events: none;
+            }
+
+            .code-box pre {
+              margin: 0;
+              position: relative;
+              z-index: 1;
+              font-size: 13px;
+              line-height: 1.8;
+              font-family: "JetBrains Mono", "Fira Code", Monaco, Consolas, monospace;
+              color: #e4e4e7;
+            }
+
+            .code-box code {
+              white-space: pre;
+            }
+
+            @media (max-width: 768px) {
+              .code-tabs-header {
+                flex-direction: column;
+                align-items: flex-start;
+              }
+
+              .code-tabs-nav {
+                width: 100%;
+                justify-content: flex-start;
+              }
+
+              .code-lang {
+                display: none;
+              }
+            }
+          `,
         }}
       />
-      <div className="code-box">
-        <pre>
-          <code>
-            {currentTab?.language && (
-              <span className="code-lang">{currentTab.language}</span>
-            )}
-            {currentTab?.code}
-          </code>
-        </pre>
+
+      <div className="code-tabs-shell">
+        <div className="code-tabs-header">
+          <div className="code-tabs-topbar">
+            <span className="code-tabs-dot red" />
+            <span className="code-tabs-dot yellow" />
+            <span className="code-tabs-dot green" />
+          </div>
+
+          <div className="code-tabs-nav">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={isActive ? "code-tab-btn active" : "code-tab-btn"}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <span className="code-lang">
+            {currentTab?.language || "code"}
+          </span>
+        </div>
+
+        <div className="code-box">
+          <pre>
+            <code>{currentTab?.code}</code>
+          </pre>
+        </div>
       </div>
     </div>
   );
@@ -184,52 +268,106 @@ export const codeTabs = [
     ),
   },
   {
-    id: "skills",
-    label: "Skills System",
-    language: "yaml",
+    id: "kotlin",
+    label: "Kotlin Agent",
+    language: "kotlin",
     code: (
       <>
-        name: <span style={{ color: "#c3e88d" }}>question-answering</span>
-        {"\n"}
-        description:{" "}
-        <span style={{ color: "#c3e88d" }}>
-          Answer user questions with a grounded response
-        </span>
-        {"\n"}
-        version: <span style={{ color: "#c3e88d" }}>"1.0.0"</span>
-        {"\n"}
-        author: <span style={{ color: "#c3e88d" }}>dev@example.com</span>
-        {"\n"}
-        tags:{"\n"}
-        {"  "}- <span style={{ color: "#c3e88d" }}>qa</span>
-        {"\n"}
-        {"  "}- <span style={{ color: "#c3e88d" }}>assistant</span>
-        {"\n"}
-        input_modes:{"\n"}
-        {"  "}- <span style={{ color: "#c3e88d" }}>text</span>
-        {"\n"}
-        output_modes:{"\n"}
-        {"  "}- <span style={{ color: "#c3e88d" }}>text</span>
-        {"\n"}
-        {"\n"}
-        <span style={{ color: "#71717a" }}>
-          # Place this in skills/question-answering/skill.yaml
-        </span>
+        <span style={{ color: "#ff79c6" }}>import</span> com.getbindu.sdk.ChatMessage{"\n"}
+        <span style={{ color: "#ff79c6" }}>import</span> com.getbindu.sdk.bindufy{"\n"}
+        <span style={{ color: "#ff79c6" }}>import</span> java.net.URI{"\n"}
+        <span style={{ color: "#ff79c6" }}>import</span> java.net.http.HttpClient{"\n"}
+        <span style={{ color: "#ff79c6" }}>import</span> java.net.http.HttpRequest{"\n"}
+        <span style={{ color: "#ff79c6" }}>import</span> java.net.http.HttpResponse{"\n"}
+        <span style={{ color: "#ff79c6" }}>import</span> com.google.gson.Gson{"\n"}
+        <span style={{ color: "#ff79c6" }}>import</span> com.google.gson.JsonObject{"\n\n"}
+        
+        <span style={{ color: "#ff79c6" }}>val</span> httpClient: HttpClient = HttpClient.newHttpClient(){"\n"}
+        <span style={{ color: "#ff79c6" }}>val</span> gson = Gson(){"\n\n"}
+        
+        <span style={{ color: "#ff79c6" }}>suspend fun</span> callOpenAI(messages: List{"<"}ChatMessage{">"}): String {"{"}{"\n"}
+        {"    "}<span style={{ color: "#ff79c6" }}>val</span> apiKey = System.getenv(<span style={{ color: "#c3e88d" }}>"OPENAI_API_KEY"</span>){"\n"}
+        {"        "}?: <span style={{ color: "#ff79c6" }}>throw</span> RuntimeException(<span style={{ color: "#c3e88d" }}>"OPENAI_API_KEY not set"</span>){"\n\n"}
+        
+        {"    "}<span style={{ color: "#ff79c6" }}>val</span> messagesJson = messages.map {"{"} msg -{">"}{"\n"}
+        {"        "}mapOf(<span style={{ color: "#c3e88d" }}>"role"</span> to msg.role, <span style={{ color: "#c3e88d" }}>"content"</span> to msg.content){"\n"}
+        {"    "}{"}"}{"\n\n"}
+        
+        {"    "}<span style={{ color: "#ff79c6" }}>val</span> body = gson.toJson(mapOf({" \n"}
+        {"        "}<span style={{ color: "#c3e88d" }}>"model"</span> to <span style={{ color: "#c3e88d" }}>"gpt-4o"</span>,{"\n"}
+        {"        "}<span style={{ color: "#c3e88d" }}>"messages"</span> to messagesJson{"\n"}
+        {"    "})){"\n\n"}
+        
+        {"    "}<span style={{ color: "#ff79c6" }}>val</span> request = HttpRequest.newBuilder(){"\n"}
+        {"        "}.uri(URI.create(<span style={{ color: "#c3e88d" }}>"https://api.openai.com/v1/chat/completions"</span>)){"\n"}
+        {"        "}.header(<span style={{ color: "#c3e88d" }}>"Content-Type"</span>, <span style={{ color: "#c3e88d" }}>"application/json"</span>){"\n"}
+        {"        "}.header(<span style={{ color: "#c3e88d" }}>"Authorization"</span>, <span style={{ color: "#c3e88d" }}>"Bearer $apiKey"</span>){"\n"}
+        {"        "}.POST(HttpRequest.BodyPublishers.ofString(body)){"\n"}
+        {"        "}.build(){"\n\n"}
+        
+        {"    "}<span style={{ color: "#ff79c6" }}>val</span> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString()){"\n"}
+        {"    "}<span style={{ color: "#ff79c6" }}>val</span> json = gson.fromJson(response.body(), JsonObject::class.java){"\n\n"}
+        
+        {"    "}<span style={{ color: "#ff79c6" }}>return</span> json{"\n"}
+        {"        "}.getAsJsonArray(<span style={{ color: "#c3e88d" }}>"choices"</span>){"\n"}
+        {"        "}.get(0).asJsonObject{"\n"}
+        {"        "}.getAsJsonObject(<span style={{ color: "#c3e88d" }}>"message"</span>){"\n"}
+        {"        "}.get(<span style={{ color: "#c3e88d" }}>"content"</span>).asString{"\n"}
+        {"}"}{"\n\n"}
+        
+        <span style={{ color: "#ff79c6" }}>fun</span> main() {"{"}{"\n"}
+        {"    "}bindufy({" \n"}
+        {"        "}config = mapOf({" \n"}
+        {"            "}<span style={{ color: "#c3e88d" }}>"author"</span> to <span style={{ color: "#c3e88d" }}>"dev@example.com"</span>,{"\n"}
+        {"            "}<span style={{ color: "#c3e88d" }}>"name"</span> to <span style={{ color: "#c3e88d" }}>"kotlin-openai-agent"</span>,{"\n"}
+        {"            "}<span style={{ color: "#c3e88d" }}>"description"</span> to <span style={{ color: "#c3e88d" }}>"An assistant built with Kotlin and Bindu"</span>,{"\n"}
+        {"            "}<span style={{ color: "#c3e88d" }}>"version"</span> to <span style={{ color: "#c3e88d" }}>"1.0.0"</span>,{"\n"}
+        {"            "}<span style={{ color: "#c3e88d" }}>"deployment"</span> to mapOf({" \n"}
+        {"                "}<span style={{ color: "#c3e88d" }}>"url"</span> to <span style={{ color: "#c3e88d" }}>"http://localhost:3773"</span>,{"\n"}
+        {"                "}<span style={{ color: "#c3e88d" }}>"expose"</span> to <span style={{ color: "#ff79c6" }}>true</span>,{"\n"}
+        {"                "}<span style={{ color: "#c3e88d" }}>"cors_origins"</span> to listOf(<span style={{ color: "#c3e88d" }}>"http://localhost:5173"</span>){"\n"}
+        {"            "}),{"\n"}
+        {"        "}),{"\n"}
+        {"        "}skills = listOf(<span style={{ color: "#c3e88d" }}>"skills/kotlin-openai-skill"</span>){"\n"}
+        {"    "}) {"{"} messages -{">"}{"\n"}
+        {"        "}<span style={{ color: "#71717a" }}>// Call OpenAI and return the response</span>{"\n"}
+        {"        "}callOpenAI(messages){"\n"}
+        {"    "}{"}"}{"\n"}
+        {"}"}
       </>
     ),
-  },
+  }
 ];
 
+<style>{`
+  @keyframes drift-grid {
+    0% {
+      background-position: 0px 0px, 0px 0px;
+    }
+    100% {
+      background-position: 80px 80px, 80px 80px;
+    }
+  }
+`}</style>
 <div className="relative mx-[calc(50%-50vw)] bg-[#f6f7f9] dark:bg-[#111113] py-16 md:py-16 border-y border-[#e5e7eb] dark:border-zinc-800 overflow-hidden">
-  <div
-    className="absolute inset-0 pointer-events-none opacity-30 dark:opacity-0"
-    style={{
-      backgroundImage:
-        "linear-gradient(#d1d5db 1px, transparent 1px), linear-gradient(90deg, #d1d5db 1px, transparent 1px)",
-      backgroundSize: "290px 290px",
-      backgroundPosition: "center",
-    }}
-  />
+
+<div
+  className="absolute inset-0 pointer-events-none opacity-[0.55] dark:opacity-[0.18]"
+  style={{
+    backgroundImage: `
+      radial-gradient(circle at center, rgba(24,24,27,0.035) 1px, transparent 1px),
+      linear-gradient(to right, rgba(24,24,27,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(24,24,27,0.025) 1px, transparent 1px)
+    `,
+    backgroundSize: "24px 24px, 96px 96px, 96px 96px",
+    backgroundPosition: "center center",
+    animation: "drift-grid 18s linear infinite",
+    maskImage:
+      "radial-gradient(circle at center, black 45%, transparent 95%)",
+    WebkitMaskImage:
+      "radial-gradient(circle at center, black 45%, transparent 95%)",
+  }}
+/>
 
   <div className="relative mx-auto flex max-w-6xl flex-col px-5 sm:px-8 lg:px-10">
     <header className="flex flex-col gap-3 rounded-full border border-[#e5e7eb] dark:border-zinc-700 bg-white dark:bg-zinc-900 px-5 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -258,184 +396,64 @@ export const codeTabs = [
     </header>
 
     <section className="mt-20 flex flex-col items-center gap-6 text-center">
-      <h1 className="text-4xl font-semibold leading-[1.05] text-zinc-900 dark:text-zinc-100 sm:text-5xl md:text-[64px]">
-        The Open-Source Framework
+      <style dangerouslySetInnerHTML={{__html: `
+        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&family=Space+Grotesk:wght@600&display=swap');
+
+        @keyframes hero-blur-reveal {
+          0% {
+            opacity: 0;
+            transform: translateY(16px);
+            filter: blur(8px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+            filter: blur(0);
+          }
+        }
+
+        .mac-hero-heading {
+          /* Prioritizes Bricolage Grotesque for that premium agency feel */
+          font-family: "Bricolage Grotesque", "Space Grotesk", "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+          letter-spacing: -0.03em;
+        }
+
+        .hero-line-1 {
+          display: inline-block;
+          /* Custom cubic-bezier for that signature Apple ease-out */
+          animation: hero-blur-reveal 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .hero-line-2 {
+          display: inline-block;
+          /* 150ms delay creates a beautiful staggered reading rhythm */
+          animation: hero-blur-reveal 1s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
+          opacity: 0; /* Keeps it hidden before the animation starts */
+        }
+
+        .hero-highlight {
+          /* Sleek, metallic-style text gradient instead of a glowing shadow */
+          background: linear-gradient(135deg, #8B5CF6 0%, #a78bfa 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+
+        .dark .hero-highlight {
+          background: linear-gradient(135deg, #a78bfa 0%, #d8b4fe 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+      `}} />
+
+      <h1 className="mac-hero-heading text-4xl font-semibold leading-[1.05] text-zinc-800 dark:text-zinc-200 sm:text-5xl md:text-[68px]">
+        <span className="hero-line-1">
+          The Open-Source Framework
+        </span>
         <br />
-        <span className="inline-flex items-center">
+        <span className="hero-line-2 hero-highlight">
           for the Internet of Agents
-          {(() => {
-            // 1. Blooming Animation Loop (Flower)
-            const [step, setStep] = React.useState(0);
-            React.useEffect(() => {
-              const interval = setInterval(() => {
-                // Total steps = 45 (1 core + 12 outer + 12 inner + 20 pause steps for viewing)
-                setStep((s) => (s + 1) % 45);
-              }, 90); // 90ms creates a rapid, satisfying bloom
-              return () => clearInterval(interval);
-            }, []);
-
-            // 2. Continuous Steam Animation Loop
-            const [steamStep, setSteamStep] = React.useState(0);
-            React.useEffect(() => {
-              const interval = setInterval(() => {
-                setSteamStep((s) => (s + 1) % 100);
-              }, 50); // Fast, smooth rising interval
-              return () => clearInterval(interval);
-            }, []);
-
-            return (
-            <span
-              className="relative inline-flex items-center justify-center ml-4"
-              // Increased width/height to make the whole component bigger,
-              // and adjusted translateY slightly to keep it vertically centered with the text.
-              style={{ width: "1.2em", height: "1.2em", transform: "translateY(5px)" }}
-            >
-                <svg
-                  viewBox="0 0 120 120"
-                  style={{ width: "100%", height: "100%", overflow: "visible" }}
-                >
-                  <defs>
-                    <radialGradient id="coreGradient" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="#A16207" />
-                      <stop offset="70%" stopColor="#78350F" />
-                      <stop offset="100%" stopColor="#451A03" />
-                    </radialGradient>
-
-                    <linearGradient id="petalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#FDE68A" />
-                      <stop offset="50%" stopColor="#FBBF24" />
-                      <stop offset="100%" stopColor="#F59E0B" />
-                    </linearGradient>
-
-                    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur stdDeviation="1.2" result="blur" />
-                      <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
-                    </filter>
-                  </defs>
-
-                  {/* =======================
-                      STEAM PARTICLES
-                      ======================= */}
-                  {[0, 1, 2].map((i) => {
-                    // Math for continuous, staggered upward float
-                    const offset = (steamStep + i * 33) % 100; 
-                    const translateY = -offset * 0.4;
-                    // Fade in at bottom, fade out at top
-                    const opacity = offset < 10 ? offset / 10 : offset > 80 ? (100 - offset) / 20 : 1;
-
-                    return (
-                      <circle
-                        key={`steam-${i}`}
-                        cx={50 + i * 8}
-                        cy={18 - i * 2}
-                        r={2.2 - i * 0.25}
-                        fill="#E5E7EB"
-                        style={{
-                          transform: `translateY(${translateY}px)`,
-                          opacity: opacity * 0.6,
-                        }}
-                      />
-                    );
-                  })}
-
-                  {/* =======================
-                      OUTER PETALS (Bloom First)
-                      ======================= */}
-                  {Array.from({ length: 12 }).map((_, index) => {
-                    const angle = index * 30;
-                    const isVisible = step >= index + 2; // Start after core (step 2)
-                    return (
-                      <g
-                        key={`outer-${index}`}
-                        style={{
-                          transformOrigin: "60px 60px",
-                          transform: `rotate(${angle}deg) scale(${isVisible ? 1 : 0})`,
-                          opacity: isVisible ? 1 : 0,
-                          transition: "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-out",
-                        }}
-                      >
-                        <ellipse
-                          cx="60"
-                          cy="28"
-                          rx="8"
-                          ry="22"
-                          fill="url(#petalGradient)"
-                          filter="url(#softGlow)"
-                        />
-                      </g>
-                    );
-                  })}
-
-                  {/* =======================
-                      INNER PETALS (Bloom Second)
-                      ======================= */}
-                  {Array.from({ length: 12 }).map((_, index) => {
-                    const angle = index * 30 + 15;
-                    const isVisible = step >= index + 14; // Start after outer petals
-                    return (
-                      <g
-                        key={`inner-${index}`}
-                        style={{
-                          transformOrigin: "60px 60px",
-                          transform: `rotate(${angle}deg) scale(${isVisible ? 1 : 0})`,
-                          opacity: isVisible ? 0.9 : 0,
-                          transition: "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-out",
-                        }}
-                      >
-                        <ellipse
-                          cx="60"
-                          cy="36"
-                          rx="5.5"
-                          ry="14"
-                          fill="#FACC15"
-                        />
-                      </g>
-                    );
-                  })}
-
-                  {/* =======================
-                      CORE & TEXTURE
-                      ======================= */}
-                  <g
-                    style={{
-                      transformOrigin: "60px 60px",
-                      transform: step >= 1 ? "scale(1)" : "scale(0)",
-                      opacity: step >= 1 ? 1 : 0,
-                      transition: "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-out",
-                    }}
-                  >
-                    <circle
-                      cx="60"
-                      cy="60"
-                      r="18"
-                      fill="url(#coreGradient)"
-                      filter="url(#softGlow)"
-                    />
-                    {/* Texture Dots */}
-                    {Array.from({ length: 18 }).map((_, i) => {
-                      const angle = (i / 18) * Math.PI * 2;
-                      const radius = i % 2 === 0 ? 7 : 11;
-                      const x = 60 + Math.cos(angle) * radius;
-                      const y = 60 + Math.sin(angle) * radius;
-                      return (
-                        <circle
-                          key={`dot-${i}`}
-                          cx={x}
-                          cy={y}
-                          r="1.4"
-                          fill="#2D1606"
-                          opacity="0.65"
-                        />
-                      );
-                    })}
-                  </g>
-                </svg>
-              </span>
-            );
-          })()}
         </span>
       </h1>
 
@@ -446,64 +464,99 @@ export const codeTabs = [
       </p>
 
       <div className="mt-12 grid w-full max-w-5xl grid-cols-1 gap-4 md:grid-cols-3">
-       <a
-        href="/bindu/introduction/what-is-bindu"
-        className="group relative flex flex-col gap-2 overflow-hidden rounded-xl border-2 border-zinc-200 bg-gradient-to-b from-white to-[#f6f7f9] p-5 transition-all duration-300 hover:border-[#8B5CF6]/40 hover:shadow-lg dark:border-zinc-800 dark:bg-gradient-to-b dark:from-zinc-800 dark:to-zinc-900 dark:hover:border-[#8B5CF6]/50"
-      >
-        {/* The Glare Sweep Element */}
-        <div className="absolute inset-0 z-0 flex transform justify-center pointer-events-none">
-          <div className="h-full w-24 -translate-x-[250%] skew-x-[-25deg] bg-gradient-to-r from-transparent via-[#8B5CF6]/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[250%] dark:via-[#8B5CF6]/20" />
-        </div>
-        
-        {/* Content (Z-10 keeps it above the glare) */}
-        <div className="relative z-10">
-          <h3 className="text-base font-semibold text-zinc-900 transition-colors dark:text-zinc-100">
-            Get Started
-          </h3>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-            Learn the core concepts and build your first A2A protocol agent.
-          </p>
-        </div>
-      </a>
-
-       <a
-          href="/bindu/grpc/overview"
-          className="group relative flex flex-col gap-2 overflow-hidden rounded-xl border-2 border-zinc-200 bg-gradient-to-b from-white to-[#f6f7f9] p-5 transition-all duration-300 hover:border-[#8B5CF6]/40 hover:shadow-lg dark:border-zinc-800 dark:bg-gradient-to-b dark:from-zinc-800 dark:to-zinc-900 dark:hover:border-[#8B5CF6]/50"
+        <a
+          href="/bindu/introduction/what-is-bindu"
+          className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
         >
-          {/* The Glare Sweep Element */}
-          <div className="absolute inset-0 z-0 flex transform justify-center pointer-events-none">
-            <div className="h-full w-24 -translate-x-[250%] skew-x-[-25deg] bg-gradient-to-r from-transparent via-[#8B5CF6]/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[250%] dark:via-[#8B5CF6]/20" />
+          <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
+            <span className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
+              Introduction
+            </span>
+
+            <div className="w-[52px]" />
           </div>
-          
-          {/* Content (Z-10 keeps it above the glare) */}
-          <div className="relative z-10">
-            <h3 className="text-base font-semibold text-zinc-900 transition-colors dark:text-zinc-100">
-              The Sidecar Architecture
-            </h3>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-              Write agent logic in any language while the Python core handles
-              infrastructure.
-            </p>
+
+          {/* Soft glare sweep */}
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
+          </div>
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-col gap-3 p-5">
+            <div className="flex items-center gap-3">
+              <div>
+                <h3 className="text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                  Get Started
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Learn the core concepts and build your first A2A protocol agent.
+                </p>
+              </div>
+            </div>
+          </div>
+        </a>
+
+        <a
+          href="/bindu/grpc/overview"
+          className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
+        >
+          <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
+            <span className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
+              SDKs
+            </span>
+
+            <div className="w-[52px]" />
+          </div>
+
+          {/* Soft glare sweep */}
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
+          </div>
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-col gap-3 p-5">
+            <div className="flex items-center gap-3">
+              <div>
+                <h3 className="text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                  The Sidecar Architecture
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Write agent logic in any language while the Python core handles infrastructure.
+                </p>
+              </div>
+            </div>
           </div>
         </a>
 
         <a
           href="/examples/beginner/echo-agent"
-          className="group relative flex flex-col gap-2 overflow-hidden rounded-xl border-2 border-zinc-200 bg-gradient-to-b from-white to-[#f6f7f9] p-5 transition-all duration-300 hover:border-[#8B5CF6]/40 hover:shadow-lg dark:border-zinc-800 dark:bg-gradient-to-b dark:from-zinc-800 dark:to-zinc-900 dark:hover:border-[#8B5CF6]/50"
+          className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
         >
-          {/* The Glare Sweep Element */}
-          <div className="absolute inset-0 z-0 flex transform justify-center pointer-events-none">
-            <div className="h-full w-24 -translate-x-[250%] skew-x-[-25deg] bg-gradient-to-r from-transparent via-[#8B5CF6]/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[250%] dark:via-[#8B5CF6]/20" />
+          <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
+            <span className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
+              Agent Examples
+            </span>
+
+            <div className="w-[52px]" />
           </div>
-          
-          {/* Content (Z-10 keeps it above the glare) */}
-          <div className="relative z-10">
-            <h3 className="text-base font-semibold text-zinc-900 transition-colors dark:text-zinc-100">
-              Changelog & Examples
-            </h3>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-              Explore production patterns, from basic agents to multi-agent swarms.
-            </p>
+
+          {/* Soft glare sweep */}
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
+          </div>
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-col gap-3 p-5">
+            <div className="flex items-center gap-3">
+              <div>
+                <h3 className="text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                  Examples
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Explore production patterns, from basic agents to multi-agent swarms.
+                </p>
+              </div>
+            </div>
           </div>
         </a>
       </div>
@@ -633,7 +686,7 @@ export const codeTabs = [
           <ul className="space-y-3">
             <li>
               <a
-                href="/openapi.yaml"
+                href="/api-reference/authentication/oauth2-token-endpoint"
                 className="text-sm text-zinc-500 dark:text-zinc-400 transition hover:text-[#8B5CF6]"
               >
                 API Docs
@@ -644,7 +697,7 @@ export const codeTabs = [
                 href="/examples/beginner/echo-agent"
                 className="text-sm text-zinc-500 dark:text-zinc-400 transition hover:text-[#8B5CF6]"
               >
-                Cookbook
+                Examples
               </a>
             </li>
           </ul>
