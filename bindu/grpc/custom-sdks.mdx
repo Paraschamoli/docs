@@ -125,6 +125,11 @@ The SDK must be able to start the engine automatically. This is what makes the d
 
 The detection logic tries three approaches in order:
 
+<Note>
+  Pass the executable and arguments as a properly split array to your language's process
+  spawner — not as a single shell string.
+</Note>
+
 <Steps>
   <Step title="Check if bindu CLI is available">
     Run `bindu` with args `["serve", "--grpc", "--grpc-port", "3774"]`

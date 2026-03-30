@@ -1,473 +1,320 @@
 ---
-title: "Skills System"
-description: "Reusable capabilities for agent orchestration"
+title: "Skills"
+description: "Define what your agent can do and make it discoverable across the Internet of Agents"
 ---
 
-Agents can handle tasks directly, but orchestration gets a lot harder when other systems cannot see what those agents are actually good at, how they describe inputs, or which work they should decline.
+An agent without declared capabilities is a black box. Other agents, orchestrators, and clients have no way to know what it can do, whether it is the right agent for a task, or how to interact with it correctly.
+
+Skills solve that. They are the formal declaration of what your agent knows how to do — structured, discoverable, and published as part of the agent card.
 
 ## Why Skills Matter
 
-In a multi-agent setup, capability discovery should not depend on guesswork, one-off prompts, or hardcoded routing logic. If an orchestrator needs an agent to extract tables from a PDF, fill a form, or answer domain-specific questions, it needs a structured way to inspect what that agent can do before assigning work.
+In a multi-agent network, capability discovery is how work gets routed to the right agent. Without a standard way to declare skills, every integration becomes a custom handshake.
 
-| Ad Hoc Capability Routing | Bindu Skills |
+| Without skills | With Bindu skills |
 | --- | --- |
-| Capabilities are inferred indirectly from prompts or code | Capabilities are declared in reusable skill metadata |
-| Discovery depends on manual documentation | Discovery uses `skill.yaml`, tags, and capabilities |
-| Routing logic is hardcoded per agent | Routing uses negotiation metadata and skill matching |
-| Input and output expectations vary by implementation | Input and output formats are documented per skill |
-| Agents are harder to compare and select | Agents can advertise skills through their manifest and agent card |
+| Capabilities are implicit or undocumented | Skills are declared in a structured manifest |
+| Orchestrators cannot discover what an agent does | Skills are published at `/agent/skills` |
+| Task routing requires manual configuration | Agents can be matched to tasks by capability |
+| No standard input/output contract | Each skill defines its expected I/O |
+| Fine for single-agent scripts | Required for multi-agent systems |
 
-That is the shift: Bindu gives agents a reusable capability layer that can be loaded, advertised, discovered, and matched during orchestration. That layer is the **Skills System**.
+That is the shift: skills turn an agent from a private script into a discoverable, composable node in the Internet of Agents.
 
 <Note>
-If an orchestrator needs a specialized capability such as PDF table extraction, it should not have to guess from a description alone. It should be able to inspect structured skill metadata and route the task with confidence.
+  Skills are defined in a `skills/` directory inside your project. Bindu reads them
+  automatically during `bindufy` and exposes them via the agent card and the
+  `/agent/skills` endpoint.
 </Note>
 
-## How Skills Work
+## How Bindu Skills Work
 
-Bindu uses **skills** to provide reusable, discoverable, and negotiable capabilities for AI agents. Each skill is defined in YAML and becomes part of the agent's advertised manifest during orchestration.
+A skill is a directory inside `skills/` that contains a `skill.json` manifest. The manifest describes the skill's identity, input schema, output schema, and any configuration it needs.
 
-### The YAML Format
+### The Skills Model
 
-Bindu uses a structured skill definition:
+A minimal skill looks like this:
 
-```yaml
-skill_id: "pdf-processing-v1"
-name: "PDF Processing"
-version: "1.0.0"
-description: "Extract text, tables, and forms from PDF documents"
-
-capabilities:
-  - text_extraction
-  - table_extraction
-  - form_filling
-  - ocr_support
-
-tags:
-  - pdf
-  - document
-  - extraction
-
-input_structure: |
-  {
-    "file": "base64_encoded_pdf_or_url",
-    "operation": "extract_text|fill_form|extract_tables",
-    "options": {
-      "ocr": true,
-      "language": "eng"
-    }
-  }
-
-output_format: |
-  {
-    "success": true,
-    "pages": [{"page_number": 1, "text": "...", "confidence": 0.98}],
-    "metadata": {"total_pages": 10, "processing_time_ms": 1500}
-  }
-
-# Assessment metadata for negotiation
-assessment:
-  keywords:
-    - pdf
-    - extract
-    - document
-
-  specializations:
-    - domain: invoice_processing
-      confidence_boost: 0.3
-
-  anti_patterns:
-    - "pdf editing"
-    - "pdf creation"
+```
+skills/
+└── question-answering/
+    └── skill.json
 ```
 
-The structure is readable to developers and precise for orchestration systems:
-
-- `skill_id` uniquely identifies the skill
-- `name` and `description` make the capability human-legible
-- `capabilities` and `tags` support discovery and matching
-- `input_structure` and `output_format` document execution expectations
-- `assessment` helps the negotiation system score when the skill should or should not be selected
+```json
+{
+  "id": "question-answering",
+  "name": "Question Answering",
+  "description": "Answers questions using web search and reasoning",
+  "tags": ["research", "search", "qa"],
+  "examples": [
+    "What is the capital of France?",
+    "Summarize the latest news on AI regulation"
+  ],
+  "inputModes": ["text/plain"],
+  "outputModes": ["text/plain"]
+}
+```
 
 <CardGroup cols={3}>
-  <Card title="Reusable" icon="layer-group">
-    Skills package capability metadata into a portable format that can be attached to different agents.
+  <Card title="Declarative" icon="file-lines">
+    Skills are defined in JSON. No code required to declare what your agent can do.
   </Card>
-  <Card title="Discoverable" icon="search">
-    Tags, capabilities, and documentation make skills visible to orchestrators and other agents.
+  <Card title="Discoverable" icon="globe">
+    Published at `/agent/skills` so orchestrators and other agents can find them.
   </Card>
-  <Card title="Routable" icon="route">
-    Assessment metadata gives the negotiation system structured signals for intelligent task selection.
+  <Card title="Composable" icon="puzzle-piece">
+    Multiple skills per agent. Each skill is independently addressable.
   </Card>
 </CardGroup>
 
-### The Lifecycle: Creation, Advertisement, Routing
-
-Under the hood, every Bindu skill moves through practical stages from definition to execution.
+### The Lifecycle: Define, Register, Discover
 
 ```mermaid
 sequenceDiagram
-    participant Developer
-    participant SkillYAML
-    participant SkillLoader
-    participant AgentManifest
-    participant AgentCard
-    participant Orchestrator
-    participant Negotiation
+    participant Dev as Developer
+    participant Bindu as bindufy()
+    participant AgentCard as /.well-known/agent.json
+    participant SkillsEndpoint as /agent/skills
+    participant Orchestrator as Orchestrator / Caller
 
-    Note over Developer,SkillYAML: 1. Skill Creation
-    Developer->>SkillYAML: Create skill.yaml<br/>(metadata, capabilities, tags)
-    SkillYAML->>SkillYAML: Define:<br/>- name, description<br/>- capabilities, tags<br/>- input/output formats<br/>- assessment metadata
+    Note over Dev,Bindu: 1. Define
+    Dev->>Bindu: skills/ directory with skill.json files
+    Bindu->>Bindu: Load and validate skill manifests
 
-    Note over Developer,AgentManifest: 2. Agent Startup (bindufy)
-    Developer->>SkillLoader: config = {skills: ["skills/my-skill"]}
-    SkillLoader->>SkillYAML: Load skill.yaml
-    SkillYAML-->>SkillLoader: Skill metadata
-    SkillLoader->>SkillLoader: Parse YAML<br/>Extract capabilities<br/>Load documentation
-    SkillLoader-->>AgentManifest: List[Skill]
-    AgentManifest->>AgentManifest: Build manifest with skills
+    Note over Bindu,SkillsEndpoint: 2. Register
+    Bindu->>AgentCard: Embed skills in agent card
+    Bindu->>SkillsEndpoint: Expose skills endpoint
 
-    Note over AgentCard,Orchestrator: 3. Skill Advertisement
-    Orchestrator->>AgentCard: GET /.well-known/agent.json
-    AgentCard-->>Orchestrator: {<br/>  name, description,<br/>  skills: [{<br/>    id, name, tags,<br/>    capabilities_detail,<br/>    input_modes, output_modes<br/>  }]<br/>}
-
-    rect rgb(240, 248, 255)
-        Note over Orchestrator: 4. Skill Discovery
-        Orchestrator->>Orchestrator: Parse agent cards<br/>Index skills by:<br/>- tags<br/>- capabilities<br/>- keywords
-        Orchestrator->>Orchestrator: Build skill registry
-    end
-
-    rect rgb(255, 248, 240)
-        Note over Orchestrator,Negotiation: 5. Task Routing (Negotiation)
-        Orchestrator->>Orchestrator: Task: "Extract tables from PDF"
-        Orchestrator->>Negotiation: POST /agent/negotiation<br/>{task_summary}
-
-        Negotiation->>Negotiation: Match against skills:<br/>- Keywords: pdf, extract, tables<br/>- Tags: pdf, document<br/>- Capabilities: table_extraction<br/>- Assessment metadata
-
-        Negotiation->>Negotiation: Calculate scores:<br/>- Skill match: 0.92<br/>- Specialization boost: +0.3<br/>- Anti-pattern check: pass
-
-        Negotiation-->>Orchestrator: {<br/>  accepted: true,<br/>  score: 0.89,<br/>  skill_matches: [{<br/>    skill_id: "pdf-processing-v1",<br/>    score: 0.92<br/>  }]<br/>}
-    end
-
-    rect rgb(240, 255, 240)
-        Note over Orchestrator,AgentManifest: 6. Task Execution
-        Orchestrator->>AgentManifest: POST / (message/send)<br/>{content: "Extract tables..."}
-        AgentManifest->>AgentManifest: Route to handler<br/>Execute skill logic
-        AgentManifest-->>Orchestrator: {result: tables_data}
-    end
-
-    Note over SkillLoader,Negotiation: Key Components
-    Note over SkillLoader: - YAML parsing<br/>- Documentation loading<br/>- Capability extraction
-    Note over Negotiation: - Semantic matching<br/>- Keyword scoring<br/>- Specialization boost<br/>- Anti-pattern filtering
+    Note over SkillsEndpoint,Orchestrator: 3. Discover
+    Orchestrator->>SkillsEndpoint: GET /agent/skills
+    SkillsEndpoint-->>Orchestrator: Skills manifest
+    Orchestrator->>Orchestrator: Match task to agent by skill
 ```
 
 <Steps>
-  <Step title="Creation">
-    Create a YAML file in `skills/` directory and define the skill metadata that the system will use for discovery, routing, and documentation.
+  <Step title="Define">
+    Create a `skills/` directory in your project root. Each subdirectory is a skill,
+    identified by its folder name.
 
-    ```yaml
-    # skills/my-skill/skill.yaml
-    skill_id: "my-skill-v1"
-    name: "My Skill"
-    version: "1.0.0"
-    description: "What this skill does"
-
-    capabilities:
-      - capability1
-      - capability2
-
-    tags:
-      - tag1
-      - tag2
-
-    documentation: |
-      # My Skill
-
-      Detailed documentation here...
-
-    input_structure: |
-      {
-        "field1": "value",
-        "field2": 123
-      }
-
-    output_format: |
-      {
-        "result": "output"
-      }
-
-    examples:
-      - title: "Example 1"
-        input:
-          field1: "test"
-        output:
-          result: "success"
-
-    assessment:
-      keywords:
-        - keyword1
-        - keyword2
+    ```
+    your-agent/
+    ├── main.py
+    ├── agent_config.json
+    └── skills/
+        ├── question-answering/
+        │   └── skill.json
+        └── summarization/
+            └── skill.json
     ```
 
-    Think of it like this: the skill file is the capability contract. It tells Bindu what the skill is, how to describe it, and how to match it during orchestration.
+    Each `skill.json` declares the skill&apos;s identity and I/O contract.
   </Step>
 
-  <Step title="Advertisement">
-    Once defined, register the skill in the agent config so Bindu can load it during startup, parse the YAML, extract capabilities, and include it in the agent manifest.
+  <Step title="Register">
+    Reference the skills directory in your agent config:
 
-    ```python
-    config = {
-        "name": "my_agent",
-        "skills": ["skills/my-skill"],  # Path to skill directory
+    ```json
+    {
+      "author": "your.email@example.com",
+      "name": "research_agent",
+      "description": "A research assistant agent",
+      "version": "1.0.0",
+      "skills": ["skills/question-answering", "skills/summarization"],
+      "deployment": {
+        "url": "http://localhost:3773",
+        "expose": true
+      }
     }
     ```
 
-    This is what makes the skill visible to orchestrators through the agent card and available for capability discovery across environments.
+    Bindu reads the manifests during `bindufy` and registers them automatically.
+    No additional code is needed.
   </Step>
 
-  <Step title="Routing">
-    Other systems can inspect skill metadata through the skill APIs and use the negotiation system to decide whether an agent is a good fit for a task.
+  <Step title="Discover">
+    Once the agent is running, skills are available at two endpoints:
 
-    <CodeGroup>
-      ```bash List Skills
-      GET /agent/skills
-      ```
+    ```bash
+    # Full agent card including skills
+    curl http://localhost:3773/.well-known/agent.json
 
-      ```json Response
+    # Skills only
+    curl http://localhost:3773/agent/skills
+    ```
+
+    ```json
+    [
       {
-        "skills": [
-          {
-            "skill_id": "pdf-processing-v1",
-            "name": "PDF Processing",
-            "version": "1.0.0",
-            "capabilities": ["text_extraction", "table_extraction"]
-          }
-        ]
+        "id": "question-answering",
+        "name": "Question Answering",
+        "description": "Answers questions using web search and reasoning",
+        "tags": ["research", "search", "qa"],
+        "inputModes": ["text/plain"],
+        "outputModes": ["text/plain"]
       }
-      ```
-    </CodeGroup>
-
-    Routing works because the skill metadata, documentation, and assessment fields give the negotiation system structured signals instead of forcing it to infer capability from free-form descriptions alone.
+    ]
+    ```
   </Step>
 </Steps>
 
 ---
 
-## Skill API Endpoints
+## The Skill Manifest
 
-Skills are exposed through dedicated APIs so orchestrators and developers can inspect what an agent supports.
+The `skill.json` file is the complete definition of a skill. All fields except `id` and `name` are optional, but the more you declare, the more useful the skill is for discovery and routing.
 
-<CodeGroup>
-  ```bash List All Skills
-  GET /agent/skills
-  ```
+```json
+{
+  "id": "question-answering",
+  "name": "Question Answering",
+  "description": "Answers questions using web search and reasoning",
+  "tags": ["research", "search", "qa"],
+  "examples": [
+    "What is the capital of France?",
+    "Who won the 2024 Nobel Prize in Physics?",
+    "Summarize the latest news on AI regulation"
+  ],
+  "inputModes": ["text/plain"],
+  "outputModes": ["text/plain", "application/json"]
+}
+```
 
-  ```json Response
-  {
-    "skills": [
-      {
-        "skill_id": "pdf-processing-v1",
-        "name": "PDF Processing",
-        "version": "1.0.0",
-        "capabilities": ["text_extraction", "table_extraction"]
-      }
-    ]
-  }
-  ```
-</CodeGroup>
+### Fields
 
-<CodeGroup>
-  ```bash Get Skill Details
-  GET /agent/skills/{skill_id}
-  ```
+| Field | Required | Description |
+| --- | --- | --- |
+| `id` | Yes | Unique identifier for the skill, matches the directory name |
+| `name` | Yes | Human-readable name shown in the agent card |
+| `description` | No | What the skill does — used for capability matching |
+| `tags` | No | Keywords for discovery and routing |
+| `examples` | No | Sample inputs that demonstrate the skill |
+| `inputModes` | No | MIME types the skill accepts (default: `text/plain`) |
+| `outputModes` | No | MIME types the skill produces (default: `text/plain`) |
 
-  ```json Response
-  {
-    "skill_id": "pdf-processing-v1",
-    "name": "PDF Processing",
-    "description": "Extract text, tables, and forms from PDF documents",
-    "input_structure": {...},
-    "output_format": {...},
-    "examples": [...]
-  }
-  ```
-</CodeGroup>
+---
 
-<CodeGroup>
-  ```bash Get Skill Documentation
-  GET /agent/skills/{skill_id}/documentation
-  ```
+## Multiple Skills
 
-  ```text Response
-  Returns human-readable documentation in Markdown format.
-  ```
-</CodeGroup>
+An agent can declare as many skills as it has capabilities. Each skill is independently addressable and can have its own I/O contract.
 
-Each field has a specific job:
+```
+skills/
+├── question-answering/
+│   └── skill.json
+├── summarization/
+│   └── skill.json
+├── data-analysis/
+│   └── skill.json
+└── code-review/
+    └── skill.json
+```
 
-- `skill_id` is the unique identifier for the skill
-- `name` is the human-readable label for the capability
-- `version` tracks the skill using semantic versioning
-- `capabilities` lists specific functions the skill supports
-- `description` explains what the skill does
-- `input_structure` documents how requests should be shaped
-- `output_format` documents the expected result structure
-- `examples` shows representative input and output usage
+```json
+{
+  "skills": [
+    "skills/question-answering",
+    "skills/summarization",
+    "skills/data-analysis",
+    "skills/code-review"
+  ]
+}
+```
 
-<Note>
-Skills can include `documentation`, `error_handling`, `best_practices`, and `constraints` alongside execution-oriented fields. That makes the metadata useful both for machines and for humans reading the contract.
-</Note>
+All declared skills appear in the agent card and the `/agent/skills` response. Orchestrators can inspect the full list and route tasks to the most appropriate skill.
 
-### Metadata Standards
+---
 
-<CardGroup cols={3}>
-  <Card title="Required Fields" icon="check-circle">
-    `skill_id`, `name`, `version`, and `description` define the minimum identity and purpose of a skill.
-  </Card>
-  <Card title="Optional Fields" icon="clipboard-list">
-    `capabilities`, `tags`, `documentation`, `input_structure`, `output_format`, `examples`, `error_handling`, `best_practices`, `constraints`, and `assessment` extend discovery and usability.
-  </Card>
-  <Card title="Assessment Metadata" icon="scale-balanced">
-    `keywords`, `specializations`, `anti_patterns`, and `complexity_indicators` help the negotiation system make more accurate routing decisions.
-  </Card>
-</CardGroup>
+## Skills and Task Routing
 
-## The Value of Structured Skill Metadata
+In a multi-agent system, an orchestrator fetches the skills of available agents and matches incoming tasks to the right agent based on skill tags, descriptions, and examples.
 
-Capability metadata only matters if it helps the system choose the right agent, reject the wrong one, and explain how execution should work before the task is sent.
+```mermaid
+graph LR
+    Task[Incoming Task<br/>summarize this document] --> Orchestrator
+    Orchestrator --> AgentA[Agent A<br/>skills: question-answering]
+    Orchestrator --> AgentB[Agent B<br/>skills: summarization, translation]
+    Orchestrator --> AgentC[Agent C<br/>skills: code-review, data-analysis]
+    AgentB --> Result[Task Routed to Agent B]
 
-This structure supports:
+    style Task fill:#e1f5ff
+    style Orchestrator fill:#fff4e1
+    style AgentA fill:#ffe1e1
+    style AgentB fill:#d4f5e1
+    style AgentC fill:#ffe1e1
+    style Result fill:#d4f5e1
+```
 
-- **Discovery** - Skills can be indexed by tags, capabilities, and keywords
-- **Routing** - Negotiation can score fit using assessment metadata
-- **Clarity** - Input and output expectations are documented explicitly
+The orchestrator does not need to know the agent&apos;s internals. The skill manifest is the contract.
 
-This is the point of the whole model: capability selection becomes a structured orchestration step instead of a guess.
+---
 
 ## Real-World Use Cases
 
 <AccordionGroup>
-  <Accordion title="Document processing and extraction">
-    A PDF-focused skill can advertise text extraction, table extraction, form filling, and OCR support so orchestrators can route the task to the right agent before execution.
+  <Accordion title="Research agent with multiple skills">
+    A research agent might declare `question-answering`, `summarization`, and
+    `web-search` as separate skills. An orchestrator can route a summarization task
+    directly to the right skill without guessing.
 
-    ```yaml
-    skill_id: "pdf-processing-v1"
-    name: "PDF Processing"
-    version: "1.0.0"
-    description: "Extract text, tables, and forms from PDF documents"
-
-    capabilities:
-      - text_extraction
-      - table_extraction
-      - form_filling
-      - ocr_support
-
-    tags:
-      - pdf
-      - document
-      - extraction
-    ```
-  </Accordion>
-
-  <Accordion title="Negotiation-aware task selection">
-    The assessment block gives the negotiation system a practical way to match requests, boost domain expertise, and avoid known bad matches.
-
-    ```yaml
-    assessment:
-      # Keywords for semantic matching
-      keywords:
-        - pdf
-        - extract
-        - document
-
-      # Domain specializations with confidence boost
-      specializations:
-        - domain: invoice_processing
-          confidence_boost: 0.3
-        - domain: form_filling
-          confidence_boost: 0.2
-
-      # Patterns this skill should NOT match
-      anti_patterns:
-        - "pdf editing"
-        - "pdf creation"
-
-      # Complexity indicators for performance estimation
-      complexity_indicators:
-        simple:
-          - "single page"
-          - "extract text"
-        medium:
-          - "multiple pages"
-          - "fill form"
-        complex:
-          - "scanned document"
-          - "ocr"
-    ```
-  </Accordion>
-
-  <Accordion title="Agent-level skill registration">
-    Skills are attached at agent startup, which lets a single agent advertise one or more reusable capabilities through its manifest and agent card.
-
-    ```python
-    config = {
-        "name": "my_agent",
-        "skills": ["skills/my-skill"],  # Path to skill directory
+    ```json
+    {
+      "skills": [
+        "skills/question-answering",
+        "skills/summarization",
+        "skills/web-search"
+      ]
     }
     ```
   </Accordion>
 
-  <Accordion title="Reusable skill authoring patterns">
-    A skill can bundle documentation, examples, structured inputs, and structured outputs so both developers and orchestrators understand how to use it.
+  <Accordion title="Specialized single-skill agent">
+    A focused agent that only does one thing well. Declaring a single skill makes its
+    purpose unambiguous and easy to route to.
 
-    ```yaml
-    documentation: |
-      # My Skill
-
-      Detailed documentation here...
-
-    input_structure: |
-      {
-        "field1": "value",
-        "field2": 123
-      }
-
-    output_format: |
-      {
-        "result": "output"
-      }
-
-    examples:
-      - title: "Example 1"
-        input:
-          field1: "test"
-        output:
-          result: "success"
+    ```json
+    {
+      "id": "code-review",
+      "name": "Code Review",
+      "description": "Reviews Python code for bugs, style, and security issues",
+      "tags": ["code", "python", "review", "security"],
+      "inputModes": ["text/plain", "text/x-python"],
+      "outputModes": ["text/plain", "application/json"]
+    }
     ```
+  </Accordion>
+
+  <Accordion title="Agent swarm with skill-based routing">
+    In a swarm, each agent declares its skills. The orchestrator builds a capability
+    map at startup by fetching `/agent/skills` from every agent, then routes tasks
+    dynamically based on what each agent can do.
   </Accordion>
 </AccordionGroup>
 
-## Best Practices
+---
 
-<CardGroup cols={2}>
-  <Card title="Design Skills Clearly" icon="pencil-ruler">
-    Single responsibility, clear naming, versioning, and strong documentation make skills easier to discover and safer to route.
-  </Card>
-  <Card title="Model Inputs Honestly" icon="code">
-    Use structured formats, document validation and error handling, include realistic examples, and keep assessment metadata accurate.
-  </Card>
-</CardGroup>
+## Project Structure
+
+The `create-bindu-agent` template scaffolds the skills directory for you:
+
+```
+your-agent/
+├── main.py                    # Agent entry point
+├── agent_config.json          # Config referencing skills
+└── skills/
+    └── question-answering/
+        └── skill.json         # Starter skill manifest
+```
+
+You can add more skills by creating new subdirectories under `skills/` and adding a `skill.json` to each one.
 
 ---
 
 ## Related
 
-* `examples/skills/`
-* `skills/question-answering/`
-* `skills/pdf-processing/`
-* `skills/cbt-*/`
-
----
+- [Create Bindu Agent](/bindu/create-bindu-agent/overview)
+- [Architecture](/bindu/concepts/architecture)
+- [A2A Protocol](https://google.github.io/A2A/)
 
 <span className="brand-quote">
   <img
@@ -478,10 +325,7 @@ This is the point of the whole model: capability selection becomes a structured 
   />
 
   <span className="brand-quote-text">
-    Bindu lets your agents share{" "}
-    <span className="brand-quote-highlight">
-      reusable, discoverable capabilities
-    </span>
-    , so orchestration can stay structured as your network grows.
+    Skills are how agents introduce themselves to the network -{" "}
+    <span className="brand-quote-highlight">not by what they are, but by what they can do</span>.
   </span>
 </span>

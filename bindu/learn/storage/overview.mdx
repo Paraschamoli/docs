@@ -1,391 +1,330 @@
 ---
-title: "PostgreSQL Storage"
-description: "Persistent storage for production deployments"
+title: "Storage"
+description: "Persist tasks, context, and artifacts across agent sessions"
 ---
 
-When agents start doing real work, memory is no longer just a nice feature it becomes important.
-A task can take many steps, a conversation might continue later and if something fails in between, the system shouldn’t lose everything it already learned.
+An agent that forgets everything the moment a request ends is not very useful in production. Tasks need to survive restarts. Conversation history needs to be retrievable. Artifacts need to be stored and served back to callers.
 
-That’s where storage becomes important. Without it, an agent can only respond in the moment. It can’t remember things over time, recover properly after errors, or keep track of what happened.
-And as more users and real workflows come in, this becomes even more important to keep everything reliable and consistent.
+Without a storage layer, every agent interaction is stateless and ephemeral. That is fine for a quick local test. It breaks the moment you need reliability, resumability, or multi-turn conversations.
 
-## Why Persistent Storage Matters
+## Why Storage Matters
 
-For early development, ephemeral memory is enough. For production, it is not.
+Bindu's task-first architecture depends on persistent state. Tasks move through states — `submitted`, `working`, `input-required`, `completed` — and that state needs to live somewhere durable.
 
-| In-memory storage | PostgreSQL storage |
+| Without storage | With Bindu storage |
 | --- | --- |
-| Fast for local development and tests | Durable for production workloads |
-| State disappears when the process restarts | State survives restarts and redeploys |
-| Best for short-lived experiments | Best for long-running tasks and real users |
-| Minimal operational overhead | Supports migrations, transactions, and indexing |
-| Harder to inspect after the fact | Easier to audit, debug, and recover |
+| Tasks are lost on restart | Tasks persist across restarts |
+| No conversation history | Full message history per task |
+| Artifacts disappear after response | Artifacts stored and retrievable |
+| Multi-turn conversations break | Context preserved across turns |
+| Fine for local scripts | Required for production agents |
 
-Bindu uses PostgreSQL as its persistent storage backend for production deployments. The storage layer is built with SQLAlchemy's async engine and uses imperative mapping with protocol TypedDicts.
+That is the shift: storage turns a stateless agent into a reliable, resumable service.
 
 <Note>
-Storage is optional. `InMemoryStorage` is used by default for development and testing, while PostgreSQL is the path you take when the agent needs durable memory.
+  Bindu defaults to in-memory storage for local development. Switch to PostgreSQL for
+  production. The storage backend is configured in `agent_config.json` — your agent
+  code does not change.
 </Note>
 
-## The Task Of The Storage Layer
+## How Bindu Storage Works
 
-Bindu's storage layer has a simple responsibility with serious consequences: keep the agent's state intact while the rest of the system keeps moving.
+Bindu abstracts storage behind a consistent interface. You choose the backend in config; the rest of the system — TaskManager, workers, context handling — works the same regardless.
 
-In practice, that means the storage layer is responsible for:
+### The Storage Model
 
-- persisting task state over time
-- preserving context and message history
-- storing artifacts produced during execution
-- supporting feedback and operational review
-- doing all of this without forcing the agent to think about the database directly
+Bindu stores three categories of data:
 
-This is subtle, but important. The agent should focus on doing the work. Storage should quietly hold the soil underneath it.
+- **Tasks** — state, messages, metadata, and lifecycle history
+- **Contexts** — shared conversation context across multiple tasks
+- **Artifacts** — outputs produced by the agent (text, files, structured data)
 
-## What Actually Happens Behind The Scenes
+<CardGroup cols={3}>
+  <Card title="Tasks" icon="list-check">
+    Every task and its full state history, messages, and metadata.
+  </Card>
+  <Card title="Contexts" icon="layer-group">
+    Shared context that spans multiple tasks in a conversation.
+  </Card>
+  <Card title="Artifacts" icon="box-archive">
+    Agent outputs stored and retrievable by task ID.
+  </Card>
+</CardGroup>
 
-Let's break the storage flow down first at a high level, then step by step.
+### Backends
+
+Bindu supports two storage backends:
+
+```mermaid
+graph LR
+    Agent[Bindu Agent] --> Interface[Storage Interface]
+    Interface --> Memory[Memory\nDevelopment]
+    Interface --> Postgres[PostgreSQL\nProduction]
+
+    style Agent fill:#e1f5ff
+    style Interface fill:#fff4e1
+    style Memory fill:#d4f5e1
+    style Postgres fill:#ffd4e1
+```
+
+| | Memory | PostgreSQL |
+| --- | --- | --- |
+| Setup | None | Requires PostgreSQL instance |
+| Persistence | Lost on restart | Survives restarts |
+| Scalability | Single process | Multi-instance, distributed |
+| Use case | Local development | Production |
+| Config | `"type": "memory"` | `"type": "postgres"` |
+
+---
+
+## Configuration
+
+Storage is configured in `agent_config.json`. No changes to your agent code are needed when switching backends.
+
+### Memory (Development)
+
+```json
+{
+  "storage": {
+    "type": "memory"
+  }
+}
+```
+
+Memory storage is the default. Tasks, contexts, and artifacts live in process memory and are gone when the agent stops. Use this for local development and testing.
+
+### PostgreSQL (Production)
+
+```json
+{
+  "storage": {
+    "type": "postgres",
+    "url": "postgresql://user:password@localhost:5432/bindu"
+  }
+}
+```
+
+Or via environment variable:
+
+```bash
+STORAGE__TYPE=postgres
+STORAGE__URL=postgresql://user:password@localhost:5432/bindu
+```
+
+Bindu creates the required tables automatically on first run. No manual schema setup needed.
+
+<Note>
+  The `STORAGE__URL` environment variable takes precedence over the value in
+  `agent_config.json`. Use environment variables in production to keep credentials out
+  of your config files.
+</Note>
+
+---
+
+## The Storage Lifecycle
+
+Storage is used throughout the task lifecycle. Here is how it fits into a complete request:
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant TaskManager
     participant Storage
-    participant PostgreSQL
-    participant Alembic
+    participant Worker
+    participant Agent
 
-    Note over Storage,Alembic: Startup & Initialization
+    Client->>TaskManager: message/send
+    TaskManager->>Storage: Save task (status: submitted)
+    TaskManager-->>Client: task_id
 
-    rect rgb(240, 248, 255)
-        Note over Storage,PostgreSQL: 1. Connection Setup
-        Storage->>PostgreSQL: Create async engine<br/>(connection pool)
-        Storage->>PostgreSQL: Test connection (ping)
-        PostgreSQL-->>Storage: Connected
+    Worker->>Storage: Load task
+    Worker->>TaskManager: Update status (working)
+    TaskManager->>Storage: Update task status
 
-        alt Auto-migrations enabled
-            Storage->>Alembic: Run pending migrations
-            Alembic->>PostgreSQL: CREATE/ALTER tables
-            PostgreSQL-->>Alembic: Schema updated
-        end
-    end
+    Worker->>Agent: Execute
+    Agent-->>Worker: Result
 
-    Note over Client,PostgreSQL: Task Lifecycle Operations
+    Worker->>Storage: Save artifact
+    Worker->>Storage: Update task (status: completed)
 
-    rect rgb(255, 248, 240)
-        Note over Client,Storage: 2. Submit Task
-        Client->>TaskManager: POST / (message/send)
-        TaskManager->>Storage: submit_task(context_id, message)
-        Storage->>PostgreSQL: INSERT INTO tasks<br/>(id, context_id, state, history)
-        Storage->>PostgreSQL: INSERT INTO contexts<br/>(id, message_history)
-        PostgreSQL-->>Storage: Task created
-        Storage-->>TaskManager: Task (state: submitted)
-    end
-
-    rect rgb(240, 255, 240)
-        Note over TaskManager,PostgreSQL: 3. Update Task
-        TaskManager->>Storage: update_task(task_id, state,<br/>new_messages, new_artifacts)
-        Storage->>PostgreSQL: BEGIN TRANSACTION
-        Storage->>PostgreSQL: SELECT * FROM tasks<br/>WHERE id = task_id
-        PostgreSQL-->>Storage: Task row
-        Storage->>PostgreSQL: UPDATE tasks SET<br/>state = 'working',<br/>history = history || new_messages,<br/>artifacts = artifacts || new_artifacts
-        Storage->>PostgreSQL: COMMIT
-        PostgreSQL-->>Storage: Updated task
-        Storage-->>TaskManager: Task (state: working)
-    end
-
-    rect rgb(255, 240, 240)
-        Note over Client,PostgreSQL: 4. Load Task
-        Client->>TaskManager: GET /tasks/{task_id}
-        TaskManager->>Storage: load_task(task_id)
-        Storage->>PostgreSQL: SELECT * FROM tasks<br/>WHERE id = task_id
-        PostgreSQL-->>Storage: Task row
-        Storage->>Storage: Convert row to Task TypedDict
-        Storage-->>TaskManager: Task object
-        TaskManager-->>Client: {id, state, history, artifacts}
-    end
-
-    rect rgb(248, 240, 255)
-        Note over Client,PostgreSQL: 5. List Tasks
-        Client->>TaskManager: GET /tasks
-        TaskManager->>Storage: list_tasks(length)
-        Storage->>PostgreSQL: SELECT * FROM tasks<br/>ORDER BY created_at DESC<br/>LIMIT length
-        PostgreSQL-->>Storage: Task rows
-        Storage-->>TaskManager: List[Task]
-        TaskManager-->>Client: [{task1}, {task2}, ...]
-    end
-
-    Note over Storage,PostgreSQL: Key Features
-    Note over Storage: - JSONB for history/artifacts<br/>- Connection pooling<br/>- Automatic retries<br/>- Transaction support<br/>- GIN indexes for JSONB
+    Client->>TaskManager: tasks/get
+    TaskManager->>Storage: Load task + artifact
+    Storage-->>TaskManager: Task data
+    TaskManager-->>Client: Task with artifacts
 ```
 
-What this means is simple: storage begins at startup, stays close to every task operation, and turns transient execution into durable system memory.
+Every state transition is written to storage. If the agent restarts mid-task, the task can be recovered and resumed from its last known state.
 
-<Steps>
-  <Step title="Situation: Startup and Initialization">
-    Before an agent can remember anything, it needs a trustworthy connection to the database. That means creating an async engine, testing connectivity, and making sure the schema is ready before work starts.
+---
 
-    If auto-migrations are enabled, Bindu also runs pending Alembic migrations so the database structure can keep growing without manual intervention on every deploy.
-  </Step>
+## Working with Tasks
 
-  <Step title="Task: Accept and Persist Work">
-    When a client submits a task, the storage layer writes the first durable record of that work. It stores the task itself, links it to a context, and captures the earliest history needed to reconstruct the flow later.
-  </Step>
+Tasks are the primary unit of storage. Each task has a unique ID and carries its full history.
 
-  <Step title="Action: Update, Load, and List State">
-    As the task evolves, storage updates state inside a transaction, appends new history and artifacts, and returns strongly shaped Task objects back to the rest of the system.
+### Retrieving a Task
 
-    When a user asks for a task again, storage loads it from PostgreSQL, converts the row back into the protocol shape, and sends it up the stack. When a user wants an overview, storage lists the newest tasks in descending order of creation time.
-  </Step>
+```bash
+curl -X POST http://localhost:3773/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/get",
+    "params": {
+      "id": "task_abc123"
+    },
+    "id": 1
+  }'
+```
 
-  <Step title="Result: Durable Agent Memory">
-    The result is continuity. Tasks survive process restarts. Context survives time. Artifacts remain inspectable. The agent grows without losing the trail behind it.
-  </Step>
-</Steps>
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "id": "task_abc123",
+    "status": {
+      "state": "completed",
+      "timestamp": "2026-03-30T12:00:00Z"
+    },
+    "history": [
+      {"role": "user", "parts": [{"text": "Summarize this document"}]},
+      {"role": "agent", "parts": [{"text": "Here is the summary..."}]}
+    ],
+    "artifacts": [
+      {
+        "name": "summary",
+        "parts": [{"text": "The document covers..."}]
+      }
+    ]
+  },
+  "id": 1
+}
+```
 
-## Storage Structure
+### Listing Tasks
 
-Under the surface, the design is intentionally small. The storage layer uses three main tables, each with a clear role.
+```bash
+curl -X POST http://localhost:3773/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/list",
+    "params": {},
+    "id": 1
+  }'
+```
 
-### 1. `tasks_table`
+---
 
-This is where Bindu keeps the full execution trail of a task, including its evolving state and outputs.
+## Contexts
 
-- `task_id` (UUID, primary key)
-- `context_id` (UUID, foreign key to contexts_table)
-- `status` (enum: pending, running, completed, failed, input_required)
-- `history` (JSONB array of execution steps)
-- `artifacts` (JSONB object for task outputs)
-- `created_at`, `updated_at` (timestamps)
+Contexts allow multiple tasks to share a common conversation thread. When a caller provides a `contextId`, Bindu links the task to that context and preserves the shared history.
 
-Why this matters:
+```python
+# First task in a context
+response = await agent.send_message(
+    "I am researching climate change",
+    context_id="research-session-001"
+)
 
-- the task row becomes the durable timeline of execution
-- JSONB allows flexible task history and artifact storage
-- timestamps make debugging and operations much easier later
+# Follow-up task in the same context
+response = await agent.send_message(
+    "What were the key findings from the last IPCC report?",
+    context_id="research-session-001"  # same context
+)
+# Agent has access to the full prior conversation
+```
 
-### 2. `contexts_table`
+Contexts are stored alongside tasks and retrieved by `contextId`. They survive restarts when using PostgreSQL.
 
-This table keeps the surrounding conversation and metadata that give a task meaning over time.
+---
 
-- `context_id` (UUID, primary key)
-- `messages` (JSONB array of conversation messages)
-- `metadata` (JSONB object for custom data)
-- `created_at`, `updated_at` (timestamps)
+## PostgreSQL Setup
 
-Why this matters:
+For production deployments, you need a running PostgreSQL instance.
 
-- a task rarely stands alone; it usually lives inside a conversation
-- context lets an agent return to the same thread with continuity
-- metadata gives you room for system-specific state without redesigning the schema every time
+### Docker (Quick Start)
 
-### 3. `task_feedback_table`
-
-This optional table stores the human signal that often matters most after execution: feedback.
-
-- `feedback_id` (UUID, primary key)
-- `task_id` (UUID, foreign key to tasks_table)
-- `feedback` (text)
-- `rating` (integer, 1-5)
-- `metadata` (JSONB object)
-- `created_at` (timestamp)
-
-Why this matters:
-
-- feedback connects outcomes to quality
-- it gives teams a durable loop for evaluation
-- it makes production systems easier to improve instead of merely operate
-
-## Configuration
-
-Storage should be easy to switch on when the time comes. Bindu keeps that surface intentionally small.
+```bash
+docker run -d \
+  --name bindu-postgres \
+  -e POSTGRES_USER=bindu \
+  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_DB=bindu \
+  -p 5432:5432 \
+  postgres:16
+```
 
 ### Environment Variables
 
-Configure PostgreSQL connection via environment variables (see `.env.example`):
-
 ```bash
-# Storage Configuration
-# Type: "postgres" for PostgreSQL or "memory" for in-memory storage
-STORAGE_TYPE=postgres
-
-# PostgreSQL connection string
-DATABASE_URL=postgresql+asyncpg://<user>:<password>@<host>:<port>/<database>?ssl=require
+STORAGE__TYPE=postgres
+STORAGE__URL=postgresql://bindu:secret@localhost:5432/bindu
 ```
 
-The connection string format is:
+### Schema
+
+Bindu manages its own schema. On first startup with PostgreSQL configured, it creates the necessary tables:
 
 ```text
-postgresql+asyncpg://<username>:<password>@<hostname>:<port>/<database>?ssl=require
+bindu_tasks       — task state, metadata, and message history
+bindu_contexts    — shared conversation contexts
+bindu_artifacts   — agent output artifacts
 ```
 
-Example:
+No manual migration steps are needed for initial setup.
 
-```bash
-DATABASE_URL=postgresql+asyncpg://bindu_user:<password>@localhost:5432/bindu_db?ssl=require
-```
+---
 
-### Agent Configuration
+## Real-World Use Cases
 
-No additional configuration is needed in your agent code. Storage is configured via environment variables, which keeps the agent definition clean:
+<AccordionGroup>
+  <Accordion title="Multi-turn conversations">
+    A user starts a research task, the agent asks a clarifying question, and the user
+    responds. With persistent storage, the task resumes from `input-required` state
+    with full context intact — even if the agent restarted between turns.
+  </Accordion>
 
-```python
-config = {
-    "author": "your.email@example.com",
-    "name": "research_agent",
-    "description": "A research assistant agent",
-    "deployment": {"url": "http://localhost:3773", "expose": True},
-    "skills": ["skills/question-answering", "skills/pdf-processing"],
-}
+  <Accordion title="Long-running tasks">
+    A data analysis task that takes several minutes. The client submits the task, gets
+    a `task_id` immediately, and polls for completion. Storage keeps the task alive
+    across the entire execution window.
+  </Accordion>
 
-bindufy(config, handler)
-```
+  <Accordion title="Audit and replay">
+    Every task stores its full message history and state transitions. You can retrieve
+    any past task by ID and inspect exactly what happened, when, and what the agent
+    produced.
+  </Accordion>
 
-That separation is deliberate. Your agent declares what it is. The environment decides how durable its memory should be.
+  <Accordion title="Multi-instance deployments">
+    With PostgreSQL, multiple instances of the same agent share a single storage
+    backend. Any instance can pick up a task from the queue and write results back to
+    the same store.
+  </Accordion>
+</AccordionGroup>
 
-## Setting Up PostgreSQL
+---
 
-The setup path depends on where you are in the journey. Local development is about getting signal quickly. Cloud deployment is about getting durability without running the database yourself.
+## Security Best Practices
 
-### Local Development
-
-#### Using Docker (Recommended)
-
-If you want the fastest clean setup, Docker is the shortest path:
-
-```bash
-# Start PostgreSQL container
-docker run -d \
-  --name bindu-postgres \
-  -e POSTGRES_USER=bindu_user \
-  -e POSTGRES_PASSWORD=bindu_password \
-  -e POSTGRES_DB=bindu_db \
-  -p 5432:5432 \
-  postgres:15-alpine
-
-# Set environment variable
-export DATABASE_URL="postgresql+asyncpg://bindu_user:<password>@localhost:5432/bindu_db"
-```
-
-#### Using Local PostgreSQL
-
-If you already run PostgreSQL locally, the flow is straightforward:
-
-1. Install PostgreSQL:
-
-   ```bash
-   # macOS
-   brew install postgresql@15
-   brew services start postgresql@15
-
-   # Ubuntu/Debian
-   sudo apt-get install postgresql-15
-   sudo systemctl start postgresql
-   ```
-
-2. Create database and user:
-
-   ```sql
-   CREATE DATABASE bindu_db;
-   CREATE USER bindu_user WITH ENCRYPTED PASSWORD '<your_password>';
-   GRANT ALL PRIVILEGES ON DATABASE bindu_db TO bindu_user;
-   ```
-
-3. Set environment variable:
-
-   ```bash
-   export DATABASE_URL="postgresql+asyncpg://bindu_user:<password>@localhost:5432/bindu_db"
-   ```
-
-### Cloud Deployment
-
-#### Neon (Serverless PostgreSQL)
-
-If you want managed infrastructure, Neon is a clean fit:
-
-1. Create account at [neon.tech](https://neon.tech)
-2. Create a new project
-3. Copy the connection string
-4. Set environment variable:
-
-   ```bash
-   export DATABASE_URL="postgresql+asyncpg://<user>:<password>@ep-xxx.us-east-2.aws.neon.tech/bindu?sslmode=require"
-   ```
-
-The result is the same in both cases: once `DATABASE_URL` is in place, Bindu can treat durable storage as part of the agent's normal runtime rather than a special mode.
-
-## Database Migrations
-
-Schema is part of the story too. As the product grows, storage has to grow without losing what already exists.
-
-Bindu uses Alembic for database migrations.
-
-### Running Migrations
-
-Migrations run automatically on startup by default. To disable:
-
-```bash
-# Disable automatic migrations
-export STORAGE__RUN_MIGRATIONS_ON_STARTUP=false
-```
-
-### Manual Migration Commands
-
-When you need more control, use the migration commands directly:
-
-```bash
-# Run all pending migrations
-uv run alembic upgrade head
-
-# Rollback one migration
-uv run alembic downgrade -1
-
-# View migration history
-uv run alembic history
-
-# Create new migration (for development)
-uv run alembic revision --autogenerate -m "description"
-```
-
-### Migration Files
-
-Located in `alembic/versions/`:
-
-- `20251207_0001_initial_schema.py` - Initial database schema
-- `20250614_0001_add_webhook_configs_table.py` - Webhook configurations
-- Additional migrations as needed
-
-### Manual Backup
-
-Even with migrations in place, backups matter. They are the quiet proof that growth does not have to mean fragility.
-
-```bash
-# Backup database
-pg_dump -h hostname -U username -d bindu_db > backup.sql
-
-# Restore database
-psql -h hostname -U username -d bindu_db < backup.sql
-```
-
-## What You Gain
-
-Once PostgreSQL is in place, Bindu gains something deeper than persistence. It gains continuity.
-
-- tasks can survive restarts and long-running execution
-- contexts remain available across time and deployments
-- artifacts stay inspectable for debugging and review
-- feedback can become part of the operational loop
-- migrations and backups make change safer instead of riskier
-
-This design matters because agents do not just need intelligence. They need memory that can be trusted.
+<CardGroup cols={2}>
+  <Card title="Use Environment Variables" icon="lock">
+    Never put database credentials in `agent_config.json`. Use `STORAGE__URL` as an
+    environment variable and keep it out of version control.
+  </Card>
+  <Card title="Restrict Database Access" icon="shield-check">
+    The Bindu agent only needs read/write access to its own tables. Use a dedicated
+    database user with minimal permissions.
+  </Card>
+</CardGroup>
 
 ---
 
 ## Related
 
-* https://www.postgresql.org/
-* https://docs.sqlalchemy.org/
-* https://alembic.sqlalchemy.org/
-
----
+- [Architecture](/bindu/concepts/architecture)
+- [Scheduler](/bindu/learn/scheduler/overview)
+- [Observability](/bindu/learn/observability/overview)
 
 <span className="brand-quote">
   <img
@@ -396,10 +335,8 @@ This design matters because agents do not just need intelligence. They need memo
   />
 
   <span className="brand-quote-text">
-    Bindu storage roots agents in{" "}
-    <span className="brand-quote-highlight">
-      reliable memory, making them verifiable&nbsp;
-    </span>
-    and bringing trust to the Internet of Agents.
+    Storage is what turns a stateless script into{" "}
+    <span className="brand-quote-highlight">an agent that remembers</span> —
+    every task, every turn, every result.
   </span>
 </span>
