@@ -22,26 +22,21 @@ An agent should not just do work. It should leave a clear trail of how that work
 That is the shift: Bindu integrates OpenTelemetry and Sentry so performance, flow, and failure can be observed directly instead of inferred after the fact.
 
 <Note>
-If an agent handles important work, it should not fail silently or perform opaquely. Teams need a way to see the path of execution, not just the final outcome.
+  If an agent handles important work, it should not fail silently or perform opaquely.
+  Teams need a way to see the path of execution, not just the final outcome.
 </Note>
 
 ## How Bindu Observability Works
 
-Bindu integrates with **OpenTelemetry (OTEL)** and **Sentry** to provide comprehensive observability and error tracking for your agents. Monitor performance, trace execution flows, and debug issues using industry-standard platforms.
-
-### The Observability Model
-
-Bindu splits observability into two complementary channels:
+Bindu integrates with OpenTelemetry (OTEL) and Sentry to provide comprehensive observability and error tracking. Bindu splits observability into two complementary channels:
 
 ```text
 OpenTelemetry -> traces and execution flow
-Sentry -> errors, releases, and performance incidents
+Sentry        -> errors, releases, and performance incidents
 ```
 
-Each layer answers a different question:
-
-- **OpenTelemetry** shows how work moved
-- **Sentry** shows where things failed and under what release or environment
+- OpenTelemetry shows how work moved
+- Sentry shows where things failed and under what release or environment
 
 <CardGroup cols={3}>
   <Card title="Traceable" icon="route">
@@ -51,84 +46,86 @@ Each layer answers a different question:
     Sentry captures failures with context that helps teams respond faster.
   </Card>
   <Card title="Portable" icon="globe">
-    OTLP-compatible telemetry can be sent to platforms like Langfuse or Arize without changing the agent model.
+    OTLP-compatible telemetry can be sent to Langfuse or Arize without changing the
+    agent model.
   </Card>
 </CardGroup>
 
 ### The Lifecycle: Instrument, Export, Diagnose
 
-Let's break the observability flow down before we look at configuration.
-
 ```mermaid
 sequenceDiagram
     participant Agent
-    participant OTEL
+    participant OTEL as OpenTelemetry
     participant Sentry
-    participant ObservabilityPlatform (Langfuse/Arize)
+    participant Platform as Langfuse / Arize
 
     Note over Agent: Agent Startup (bindufy)
 
-    rect rgb(240, 248, 255)
-        Note over Agent,OTEL: OpenTelemetry Setup
-        Agent->>Agent: Check TELEMETRY_ENABLED
-        Agent->>OTEL: Initialize TracerProvider<br/>(service name, version, env)
-        Agent->>OTEL: Configure OTLP Exporter<br/>(endpoint, headers)
-        Agent->>OTEL: Add BatchSpanProcessor
-        OTEL-->>Agent: Tracer ready
-    end
+    Agent->>OTEL: Initialize TracerProvider (service name, version, env)
+    Agent->>OTEL: Configure OTLP Exporter + BatchSpanProcessor
+    OTEL-->>Agent: Tracer ready
 
-    rect rgb(255, 248, 240)
-        Note over Agent,Sentry: Sentry Setup
-        Agent->>Agent: Check SENTRY_ENABLED
-        Agent->>Sentry: Initialize SDK<br/>(DSN, environment, release)
-        Agent->>Sentry: Add integrations<br/>(Starlette, SQLAlchemy, Redis)
-        Sentry-->>Agent: Error tracking ready
-    end
+    Agent->>Sentry: Initialize SDK (DSN, environment, release)
+    Agent->>Sentry: Add integrations (Starlette, SQLAlchemy, Redis, Asyncio)
+    Sentry-->>Agent: Error tracking ready
 
     Note over Agent: Agent Running
 
-    rect rgb(240, 255, 240)
-        Note over Agent,ObservabilityPlatform: Runtime Telemetry
-        Agent->>OTEL: Create spans (traces)
-        OTEL->>ObservabilityPlatform: Export to Langfuse/Arize<br/>(batched, async)
-        Agent->>Sentry: Capture errors/performance
-        Sentry->>ObservabilityPlatform: Send to Sentry.io
-    end
+    Agent->>OTEL: Create spans (traces)
+    OTEL->>Platform: Export to Langfuse / Arize (batched, async)
+    Agent->>Sentry: Capture errors / performance
+    Sentry->>Platform: Send to Sentry.io
 ```
-
-What this means is simple: observability begins at startup, stays close to runtime, and keeps a durable record of how work flowed and where it failed.
 
 <Steps>
   <Step title="Instrument">
-    On startup, Bindu checks whether telemetry and Sentry are enabled. If they are, it initializes the tracer provider, OTLP exporter, span processor, and Sentry SDK with the right environment and release metadata.
+    On startup, Bindu checks whether telemetry and Sentry are enabled. If they are, it
+    initializes the tracer provider, OTLP exporter, span processor, and Sentry SDK with
+    the right environment and release metadata.
 
-    This matters because good observability starts before the first request, not after the first incident.
+    Good observability starts before the first request, not after the first incident.
   </Step>
 
   <Step title="Export">
-    Once the agent is running, spans are created and exported asynchronously to an OTEL-compatible backend, while Sentry captures exceptions and performance information through its own pipeline.
+    Once the agent is running, spans are created and exported asynchronously to an
+    OTEL-compatible backend, while Sentry captures exceptions and performance
+    information through its own pipeline.
 
-    The effect is that one system explains flow and the other explains failure.
+    One system explains flow. The other explains failure.
   </Step>
 
   <Step title="Diagnose">
-    When something goes wrong, teams can inspect traces for path-level visibility and use Sentry for release-aware error context, stack traces, and performance events.
+    When something goes wrong, teams can inspect traces for path-level visibility and
+    use Sentry for release-aware error context, stack traces, and performance events.
 
     Together, they shorten the distance between "something broke" and "we know why."
   </Step>
 </Steps>
 
+---
+
 ## OpenTelemetry Setup
 
 ### Supported Platforms
 
-- **[Arize](https://arize.com/)** - AI observability platform for monitoring and debugging ML models
-- **[Langfuse](https://langfuse.com/)** - Open-source LLM engineering platform with tracing and analytics
-- **Any OTEL-compatible platform** - Supports standard OTLP protocol
+<CardGroup cols={3}>
+  <Card title="Langfuse" icon="chart-line" href="https://cloud.langfuse.com">
+    Open-source LLM engineering platform with tracing and analytics.
+  </Card>
+  <Card title="Arize" icon="eye" href="https://arize.com">
+    AI observability platform for monitoring and debugging ML models.
+  </Card>
+  <Card title="Any OTEL Platform" icon="globe">
+    Supports standard OTLP protocol — works with any compatible backend.
+  </Card>
+</CardGroup>
 
 ### Configuration
 
-Enable OpenTelemetry tracing via environment variables (see `.env.example`):
+<Note>
+  Bindu uses the `OLTP_` prefix (not `OTEL_`) for these variables in the codebase.
+</Note>
 
 ```bash
 # Enable telemetry
@@ -143,10 +140,8 @@ OLTP_SERVICE_NAME=research-agent
 # Authentication headers (platform-specific)
 OLTP_HEADERS={"Authorization":"Basic <base64-encoded-credentials>"}
 
-# Optional: Enable verbose logging
+# Optional
 OLTP_VERBOSE_LOGGING=true
-
-# Optional: Additional configuration
 OLTP_SERVICE_VERSION=1.0.0
 OLTP_DEPLOYMENT_ENVIRONMENT=production
 OLTP_BATCH_MAX_QUEUE_SIZE=2048
@@ -155,100 +150,89 @@ OLTP_BATCH_SCHEDULE_DELAY_MILLIS=5000
 
 ### Platform-Specific Setup
 
-#### Langfuse
+<AccordionGroup>
+  <Accordion title="Langfuse">
+    1. Sign up at [cloud.langfuse.com](https://cloud.langfuse.com)
+    2. Navigate to Settings → API Keys and create a new key pair
+    3. Base64-encode your credentials:
 
-1. **Create Account**: Sign up at [cloud.langfuse.com](https://cloud.langfuse.com)
+    ```bash
+    echo -n "pk-xxx:sk-xxx" | base64
+    ```
 
-2. **Generate API Keys**:
-   - Navigate to Settings → API Keys
-   - Create new key pair (public and secret)
+    4. Configure environment:
 
-3. **Encode Credentials**:
+    ```bash
+    TELEMETRY_ENABLED=true
+    OLTP_ENDPOINT=https://cloud.langfuse.com/api/public/otel/v1/traces
+    OLTP_SERVICE_NAME=your-agent-name
+    OLTP_HEADERS={"Authorization":"Basic <base64-encoded-credentials>"}
+    OLTP_VERBOSE_LOGGING=true
+    ```
+  </Accordion>
 
-   ```bash
-   # Base64 encode "public-key:secret-key"
-   echo -n "pk-xxx:sk-xxx" | base64
-   ```
+  <Accordion title="Arize">
+    1. Sign up at [arize.com](https://arize.com)
+    2. Navigate to Settings → API Keys and copy your Space ID and API Key
+    3. Configure environment:
 
-4. **Configure Environment**:
+    ```bash
+    TELEMETRY_ENABLED=true
+    OLTP_ENDPOINT=https://otlp.arize.com/v1
+    OLTP_SERVICE_NAME=your-agent-name
+    OLTP_HEADERS={"space_id":"<your-space-id>","api_key":"<your-api-key>"}
+    OLTP_VERBOSE_LOGGING=true
+    ```
+  </Accordion>
+</AccordionGroup>
 
-   ```bash
-   TELEMETRY_ENABLED=true
-   OLTP_ENDPOINT=https://cloud.langfuse.com/api/public/otel/v1/traces
-   OLTP_SERVICE_NAME=your-agent-name
-   OLTP_HEADERS={"Authorization":"Basic <base64-encoded-credentials>"}
-   OLTP_VERBOSE_LOGGING=true
-   ```
-
-#### Arize
-
-1. **Create Account**: Sign up at [arize.com](https://arize.com)
-
-2. **Get Credentials**:
-   - Navigate to Settings → API Keys
-   - Copy Space ID and API Key
-
-3. **Configure Environment**:
-
-   ```bash
-   TELEMETRY_ENABLED=true
-   OLTP_ENDPOINT=https://otlp.arize.com/v1
-   OLTP_SERVICE_NAME=your-agent-name
-   OLTP_HEADERS={"space_id":"<your-space-id>","api_key":"<your-api-key>"}
-   OLTP_VERBOSE_LOGGING=true
-   ```
+---
 
 ## Sentry Error Tracking
 
 ### Configuration
 
-Enable Sentry via environment variables (see `.env.example`):
+<Note>
+  Bindu reads `SENTRY_ENABLED` and `SENTRY_DSN` as flat variables. All detailed
+  settings use a double-underscore (`__`) to map to internal nested configuration.
+</Note>
 
 ```bash
-# Enable Sentry
+# Core setup (flat variables)
 SENTRY_ENABLED=true
-
-# Sentry DSN (from your Sentry project)
 SENTRY_DSN=https://<key>@<org-id>.ingest.sentry.io/<project-id>
 
-# Optional: Environment name
-SENTRY_ENVIRONMENT=production
-
-# Optional: Release version
-SENTRY_RELEASE=1.0.0
-
-# Optional: Performance monitoring
-SENTRY_TRACES_SAMPLE_RATE=1.0
-SENTRY_PROFILES_SAMPLE_RATE=1.0
-SENTRY_ENABLE_TRACING=true
-
-# Optional: Privacy settings
-SENTRY_SEND_DEFAULT_PII=false
-SENTRY_DEBUG=false
+# Detailed configuration (double-underscore prefix)
+SENTRY__ENVIRONMENT=production
+SENTRY__RELEASE=1.0.0
+SENTRY__TRACES_SAMPLE_RATE=1.0
+SENTRY__PROFILES_SAMPLE_RATE=1.0
+SENTRY__ENABLE_TRACING=true
+SENTRY__SEND_DEFAULT_PII=false
+SENTRY__DEBUG=false
 ```
 
-### Setting Up Sentry
+### Setup
 
-1. **Create Account**: Sign up at [sentry.io](https://sentry.io)
+1. Sign up at [sentry.io](https://sentry.io)
+2. Create a project and select Python as the platform
+3. Copy the DSN from project settings
+4. Configure environment:
 
-2. **Create Project**:
-   - Select Python as platform
-   - Copy the DSN from project settings
+```bash
+SENTRY_ENABLED=true
+SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
+SENTRY__ENVIRONMENT=production
+SENTRY__RELEASE=1.0.0
+```
 
-3. **Configure Environment**:
+5. Restart the agent — Sentry initializes on startup
 
-   ```bash
-   SENTRY_ENABLED=true
-   SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
-   SENTRY_ENVIRONMENT=production
-   SENTRY_RELEASE=1.0.0
-   ```
-
-4. **Restart Agent**: Sentry initializes on startup
+---
 
 ## Agent Configuration
 
-No code changes are needed. Observability is configured via environment variables:
+No code changes are needed. Observability is configured entirely via environment variables:
 
 ```python
 config = {
@@ -262,33 +246,29 @@ config = {
 bindufy(config, handler)
 ```
 
-That separation is deliberate. The agent defines behavior. The environment defines how deeply that behavior should be observed.
+The agent defines behavior. The environment defines how deeply that behavior should be observed.
+
+---
 
 ## Best Practices
 
-### Sampling
-
-For high-traffic agents, use sampling to reduce costs:
+### Sampling for High-Traffic Agents
 
 ```bash
-# Sample 10% of traces
-SENTRY_TRACES_SAMPLE_RATE=0.1
-
-# Sample 10% of profiles
-SENTRY_PROFILES_SAMPLE_RATE=0.1
+# Sample 10% of traces to reduce cost
+SENTRY__TRACES_SAMPLE_RATE=0.1
+SENTRY__PROFILES_SAMPLE_RATE=0.1
 ```
 
 ### Environment Separation
 
-Use different environments for development and production:
-
 ```bash
 # Development
-SENTRY_ENVIRONMENT=development
+SENTRY__ENVIRONMENT=development
 OLTP_SERVICE_NAME=agent-dev
 
 # Production
-SENTRY_ENVIRONMENT=production
+SENTRY__ENVIRONMENT=production
 OLTP_SERVICE_NAME=agent-prod
 ```
 
@@ -305,26 +285,15 @@ sentry_sdk.set_context("business", {
 sentry_sdk.set_tag("feature", "pdf-processing")
 ```
 
-## The Value Of Observable Systems
-
-Observability only matters if it helps teams move from confusion to explanation.
-
-This model gives you:
-
-- **execution transparency** - traces reveal how requests move through the system
-- **failure context** - Sentry attaches environment, release, and runtime detail to errors
-- **faster debugging** - teams can inspect cause and path instead of relying on symptoms
-
-This is the point of the whole model: as agents become more capable and more connected, their internal behavior should become easier to illuminate, not harder.
+---
 
 ## Related
 
-- [OpenTelemetry Python](https://opentelemetry.io/docs/instrumentation/python/)
+- [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/)
 - [Langfuse Documentation](https://langfuse.com/docs)
-- [Arize Documentation](https://docs.arize.com/)
+- [Arize Documentation](https://docs.arize.com)
 - [Sentry Python SDK](https://docs.sentry.io/platforms/python/)
-
----
+- [Health Check & Metrics](/bindu/learn/health-metrics/overview)
 
 <span className="brand-quote">
   <img
@@ -335,10 +304,10 @@ This is the point of the whole model: as agents become more capable and more con
   />
 
   <span className="brand-quote-text">
-    Bindu brings clarity to your agents{" "}
+    Bindu brings clarity to your agents —{" "}
     <span className="brand-quote-highlight">
-      each one visible, traceable, and growing in trust&nbsp;
-    </span>
+      each one visible, traceable, and growing in trust
+    </span>{" "}
     across the Internet of Agents.
   </span>
 </span>

@@ -1,15 +1,13 @@
 ---
-title: 'gRPC Quickstart'
-description: 'The fastest path to your first working gRPC agent'
+title: "gRPC Quickstart"
+description: "The fastest path to your first working gRPC agent"
 ---
 
-## Overview
+This is the fastest path to the aha moment. You will build a simple TypeScript agent, call `bindufy()`, and watch the Bindu Core sidecar turn it into a real microservice.
 
-This is the fastest path to the **aha moment**. You will build a simple TypeScript agent, call `bindufy()`, and watch the Bindu Core sidecar turn it into a real microservice.
+You write the driver. The sidecar brings the engine: DID identity, A2A protocol compliance, x402 payment support, scheduling, storage, and an HTTP server.
 
-You write the **driver**. The sidecar brings the **engine**: DID identity, A2A protocol compliance, x402 payment support, scheduling, storage, and an HTTP server.
-
-**Time to complete:** ~10 minutes
+Time to complete: ~10 minutes
 
 <CardGroup cols={2}>
   <Card title="DID Identity" icon="fingerprint">
@@ -58,7 +56,8 @@ uv pip install bindu
 ```
 
 <Info>
-The SDK launches the Python core automatically as a child process. You never start the sidecar manually during normal SDK use.
+  The SDK launches the Python core automatically as a child process. You never start
+  the sidecar manually during normal SDK use.
 </Info>
 
 ---
@@ -77,31 +76,24 @@ npm init -y
 
 ## Step 2: Install Dependencies
 
-Next, install the SDK and your app dependencies.
-
 ```bash
 npm install @bindu/sdk openai dotenv
 npm install -D tsx typescript @types/node
 ```
 
-**What each package does:**
-- `@bindu/sdk` - Bindu TypeScript SDK (gRPC, registration, sidecar lifecycle)
-- `openai` - OpenAI Node.js SDK
-- `dotenv` - Loads environment variables from `.env`
-- `tsx` - TypeScript executor (dev dependency)
-- `typescript` - TypeScript compiler (dev dependency)
+- `@bindu/sdk` — Bindu TypeScript SDK (gRPC, registration, sidecar lifecycle)
+- `openai` — OpenAI Node.js SDK
+- `dotenv` — Loads environment variables from `.env`
+- `tsx` — TypeScript executor (dev dependency)
+- `typescript` — TypeScript compiler (dev dependency)
 
 ---
 
 ## Step 3: Create Your Environment File
 
-Create a `.env` file in your project root:
-
 ```bash
 touch .env
 ```
-
-Add your OpenAI API key:
 
 ```env
 OPENAI_API_KEY=sk-your-openai-api-key-here
@@ -109,17 +101,16 @@ OPENAI_MODEL=gpt-4o
 ```
 
 <Warning>
-Never commit your `.env` file to git. Add it to `.gitignore`:
-```bash
-echo ".env" >> .gitignore
-```
+  Never commit your `.env` file to git.
+
+  ```bash
+  echo ".env" >> .gitignore
+  ```
 </Warning>
 
 ---
 
 ## Step 4: Create a Skill Definition
-
-Now give the sidecar something structured to advertise.
 
 ```bash
 mkdir -p skills/question-answering
@@ -143,45 +134,38 @@ author: dev@example.com
 ```
 
 <Tip>
-You can also use Markdown format (`SKILL.md`) instead of YAML. Both formats are supported.
+  You can also use Markdown format (`SKILL.md`) instead of YAML. Both formats are
+  supported.
 </Tip>
 
 ---
 
 ## Step 5: Write Your Agent Code
 
-Here is the minimal pattern: your code defines the **driver**, and `bindufy()` attaches the **engine**.
+Here is the minimal pattern: your code defines the driver, and `bindufy()` attaches the engine.
 
 ```typescript
 import { bindufy, ChatMessage } from "@bindu/sdk";
 import OpenAI from "openai";
 import * as dotenv from "dotenv";
 
-// Load environment variables
 dotenv.config();
 
-// Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Bindufy your agent - one call, full microservice
 bindufy(
   {
-    // Required: Agent identity
     author: "dev@example.com",
     name: "my-first-agent",
     description: "A helpful assistant powered by GPT-4o",
     version: "1.0.0",
-
-    // Required: Deployment configuration
     deployment: {
       url: "http://localhost:3773",
       expose: true,
       cors_origins: ["http://localhost:5173"],
     },
-
-    // Optional: Skills
     skills: ["skills/question-answering"],
   },
   async (messages: ChatMessage[]) => {
@@ -202,8 +186,6 @@ bindufy(
 
 ## Step 6: Run Your Agent
 
-Start the app:
-
 ```bash
 npx tsx index.ts
 ```
@@ -213,7 +195,7 @@ You should see output like this:
 ```text
 [Bindu SDK] Starting Bindu core...
 [Bindu SDK] Bindu core is ready on :3774
-[Bindu SDK] AgentHandler gRPC server started on :50052
+[Bindu SDK] AgentHandler gRPC server started on :XXXXX
 [Bindu SDK] Registering agent with Bindu core...
 [Bindu SDK]
 [Bindu SDK] Agent registered successfully!
@@ -229,8 +211,6 @@ You should see output like this:
 ---
 
 ## Step 7: Verify It Works
-
-With the sidecar running, verify the public surface.
 
 ### Send a message
 
@@ -258,13 +238,17 @@ curl -s -X POST http://localhost:3773 \
   }' | python3 -m json.tool
 ```
 
+<Info>
+  `messageId`, `contextId`, and `taskId` are required fields in the A2A Message schema.
+  You must pass valid UUIDs. Omitting any of them will result in a validation error from
+  the core.
+</Info>
+
 ### Check the agent card
 
 ```bash
 curl -s http://localhost:3773/.well-known/agent.json | python3 -m json.tool
 ```
-
-This returns your agent's A2A card with DID, skills, and capabilities.
 
 ### Check health
 
@@ -276,43 +260,41 @@ curl -s http://localhost:3773/health
 
 ## What Just Happened?
 
-Now that the agent is working, here is the sequence the SDK handled for you.
-
 <Steps>
   <Step title="Launched the Python core">
-    Spawned `bindu serve --grpc` as a child process
+    Spawned `bindu serve --grpc` as a child process.
   </Step>
 
   <Step title="Started a gRPC server">
-    For your handler on a dynamic port (e.g., :50052)
+    For your handler on a dynamic, OS-assigned port.
   </Step>
 
   <Step title="Read your skill files">
-    Loaded `skills/question-answering/skill.yaml`
+    Loaded `skills/question-answering/skill.yaml`.
   </Step>
 
   <Step title="Registered your agent">
-    Called `RegisterAgent` on the core with your config
+    Called `RegisterAgent` on the core with your config.
   </Step>
 
   <Step title="Core ran full bindufy logic">
-    - Generated deterministic agent ID from SHA256(author:name)
+    - Generated deterministic agent ID from `SHA256(author:name)`
     - Created Ed25519 DID keys
     - Set up authentication (Hydra OAuth2)
-    - Created manifest with GrpcAgentClient as handler
-    - Started HTTP/A2A server on :3773
+    - Created manifest with `GrpcAgentClient` as handler
+    - Started HTTP/A2A server on `:3773`
   </Step>
 
   <Step title="Returned registration result">
-    Agent ID, DID, and A2A URL
+    Agent ID, DID, and A2A URL.
   </Step>
 
   <Step title="Started heartbeat loop">
-    Pings core every 30 seconds to signal liveness
+    Pings core every 30 seconds to signal liveness.
   </Step>
 </Steps>
 
-In other words, your code became the **driver**, and the sidecar brought the **engine** online around it.
+Your code became the driver, and the sidecar brought the engine online around it.
 
 ---
 
@@ -321,58 +303,54 @@ In other words, your code became the **driver**, and the sidecar brought the **e
 Once startup is done, every request follows the same path:
 
 ```text
-1. Client -> HTTP POST to :3773 (A2A protocol)
-2. Bindu Core receives request
-3. TaskManager creates task, Scheduler queues it
-4. ManifestWorker picks up task, builds message history
-5. Worker calls manifest.run(messages)
-   -> This is GrpcAgentClient - makes gRPC call to your TypeScript process
-6. TypeScript SDK receives HandleMessages on :50052
-7. SDK calls your handler(messages) - the async function you wrote
-8. Your handler calls OpenAI GPT-4o API
-9. OpenAI returns response
+1.  Client -> HTTP POST to :3773 (A2A protocol)
+2.  Bindu Core receives request
+3.  TaskManager creates task, Scheduler queues it
+4.  ManifestWorker picks up task, builds message history
+5.  Worker calls manifest.run(messages)
+    -> GrpcAgentClient makes gRPC call to your TypeScript process
+6.  TypeScript SDK receives HandleMessages on its dynamic port
+7.  SDK calls your handler(messages)
+8.  Your handler calls OpenAI GPT-4o API
+9.  OpenAI returns response
 10. SDK sends response back over gRPC
 11. Worker processes result, creates DID-signed artifact
 12. Client receives A2A JSON-RPC response
 ```
 
 <Info>
-The gRPC overhead is ~1-5ms. The rest is the LLM call time.
+  The gRPC overhead is ~1–5ms. The rest is the LLM call time.
 </Info>
 
 ---
 
 ## Project Structure
 
-At this point, your project should look like this:
-
 ```text
 my-first-agent/
-|-- index.ts
-|-- package.json
-|-- .env
-|-- .gitignore
-|-- skills/
-|   `-- question-answering/
-|       `-- skill.yaml
-`-- node_modules/
+├── index.ts
+├── package.json
+├── .env
+├── .gitignore
+├── skills/
+│   └── question-answering/
+│       └── skill.yaml
+└── node_modules/
 ```
 
 ---
 
 ## Next Steps
 
-The quickstart proves the sidecar works. The next step is learning how to drive it well.
-
 <CardGroup cols={2}>
   <Card title="Agent Implementation" icon="messages" href="/bindu/grpc/agent-client">
-    Learn how handlers, state transitions, skills, and debugging work
+    Handlers, state transitions, skills, and debugging
   </Card>
   <Card title="Custom SDKs" icon="code" href="/bindu/grpc/custom-sdks">
     Build SDKs for other languages
   </Card>
   <Card title="API Reference" icon="book" href="/bindu/grpc/api-reference">
-    Review services, messages, ports, and env vars
+    Services, messages, ports, and env vars
   </Card>
   <Card title="Overview" icon="diagram-project" href="/bindu/grpc/overview">
     Revisit the sidecar architecture and limitations
@@ -383,7 +361,7 @@ The quickstart proves the sidecar works. The next step is learning how to drive 
 
 ## Multi-Turn Conversations
 
-One of the first useful patterns is keeping the task open when the driver needs more context.
+Instead of returning a simple string, return an object that tells the core to pause the task and prompt the user:
 
 ```typescript
 bindufy(config, async (messages: ChatMessage[]) => {
@@ -411,8 +389,6 @@ The task stays open after `input-required`. When the user sends a follow-up, you
 ---
 
 ## Adding Payments
-
-The same sidecar can also enforce payment before your handler runs:
 
 ```typescript
 bindufy(
@@ -466,8 +442,6 @@ bindufy(config, async (messages: ChatMessage[]) => {
 
 ## Production Deployment
 
-When you move beyond local testing, you still keep the same driver/sidecar split.
-
 ```env
 OPENAI_API_KEY=sk-prod-...
 STORAGE_TYPE=postgres
@@ -499,53 +473,56 @@ docker run -p 3773:3773 -p 3774:3774 --env-file .env my-agent
 
 ## Troubleshooting
 
-### "Bindu not found"
+<AccordionGroup>
+  <Accordion title='"Bindu not found"'>
+    ```bash
+    pip install bindu
+    bindu --version
+    ```
+  </Accordion>
 
-```bash
-pip install bindu
-bindu --version
-```
+  <Accordion title='"Port 3773 already in use"'>
+    ```bash
+    lsof -ti:3773 -ti:3774 | xargs kill 2>/dev/null
+    ```
+  </Accordion>
 
-### "Port 3773 already in use"
+  <Accordion title='"OPENAI_API_KEY not set"'>
+    ```bash
+    cat .env
+    # Should show: OPENAI_API_KEY=sk-...
+    ```
+  </Accordion>
 
-```bash
-lsof -ti:3773 -ti:3774 | xargs kill 2>/dev/null
-```
+  <Accordion title="Agent starts but no response">
+    Common causes:
+    - Invalid API key
+    - Model not available on your OpenAI plan
+    - Rate limiting
+    - Network connectivity
+  </Accordion>
 
-### "OPENAI_API_KEY not set"
-
-```bash
-cat .env
-# Should show: OPENAI_API_KEY=sk-...
-```
-
-### Agent starts but no response
-
-Common issues:
-- Invalid API key
-- Model not available on your OpenAI plan
-- Rate limiting
-- Network connectivity
-
-### "Registration failed"
-
-Common causes:
-- Missing `author` or `name` in config
-- Invalid `deployment.url` format
-- Port conflicts
+  <Accordion title='"Registration failed"'>
+    Common causes:
+    - Missing `author` or `name` in config
+    - Invalid `deployment.url` format
+    - Port conflicts
+  </Accordion>
+</AccordionGroup>
 
 ---
 
 ## Ports Reference
 
 | Port | Protocol | Purpose |
-|------|----------|---------|
+| --- | --- | --- |
 | `:3773` | HTTP | A2A protocol server (clients connect here) |
 | `:3774` | gRPC | Bindu core registration (SDK connects here) |
-| `:50052` | gRPC | AgentHandler (core calls your handler here) |
+| `:auto` | gRPC | AgentHandler (core calls your handler here, OS-assigned) |
 
 <Info>
-The handler port (`:50052`) is auto-assigned by default. You can override it with `callbackPort` in your config.
+  The handler port is auto-assigned by the OS. You can override it with the
+  `callbackPort` key in your config to pin it to a specific port if needed.
 </Info>
 
 ---
@@ -590,8 +567,6 @@ bindufy(
 );
 ```
 
----
-
 <span className="brand-quote">
   <img
     src="/logo/light.svg"
@@ -599,6 +574,7 @@ bindufy(
     width="32"
     className="clean-icon"
   />
+
   <span className="brand-quote-text">
     Get your first language-agnostic agent running in minutes without writing{" "}
     <span className="brand-quote-highlight">
