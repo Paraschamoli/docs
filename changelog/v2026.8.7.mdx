@@ -1,169 +1,53 @@
 ---
-title: 'v2026.8.7 - Bug Fixes and Community Contributions'
-description: 'Stability improvements, dependency updates, and new example agents'
+title: "v2026.8.7"
+description: "Bug fixes, dependency updates, new example agents, and community contributions"
+date: "2026-02-21"
 ---
 
-## Overview
+## Bug Fixes and Community Contributions
 
-This release includes important bug fixes for schema management, type checking improvements, dependency updates, and several community-contributed example agents. Focus on stability, code quality, and expanding the example library.
-
-**Version:** 2026.8.7  
-**Date:** February 21, 2026  
-**Contributors:** Raahul Dutta, rautsoham03, ssjgit08, Krushna, AseemPrasad, Sharda2004196, Krushna56
+Stability release with fixes for schema management, type checking, and dependency compatibility. Also adds three new example agents contributed by the community. No breaking changes.
 
 ---
 
-## Breaking Changes
+## What's Fixed
 
-<Note>
-**No breaking changes in this release**
+**Schema management** — Schema name truncation now correctly caps at 63 characters (PostgreSQL's limit). Previously, long DID-based schema names could exceed this.
 
-All changes are backward compatible. If upgrading from versions with exact dependency pins, run `uv sync` to update dependencies.
-</Note>
+**Type checking** — Fixed a type checker error for `sys.stdout.reconfigure` and resolved type checking issues across several modules.
 
----
+**Task manager** — Stabilized `task_manager.py` with improved error handling and edge case coverage.
 
-## Bug Fixes
-
-### 🐛 Schema Management
-- Fixed schema name truncation logic for DID-based multi-tenancy
-- Schema names now correctly truncate to 63 characters (PostgreSQL limit)
-- Schema truncation test fixed and verified
-
-### 🔧 Type Checking
-- Fixed type checker error for `sys.stdout.reconfigure` call
-- Resolved type checking errors across codebase
-
-### 📝 Documentation
-- Fixed docstring formatting to comply with pydocstyle D209
-- Cleaned up whitespace and formatting across multiple files
-- Sanitized credentials in documentation
-
-### ⚙️ Stability
-- Stabilized `task_manager.py`
-- Enhanced error handling and edge cases
+**Dependencies** — Updated pydantic (2.11.3 → 2.12.5), requests (2.32.3 → 2.32.5), sqlalchemy (2.0.44 → 2.0.46), tenacity (8.5.0 → 9.1.4), and rich (13.9.4 → 14.3.2). The pydantic update resolves a fastmcp compatibility issue; the requests update resolves a langchain-community compatibility issue.
 
 ---
 
-## Features & Enhancements
+## What's New
 
-### 🎯 New Example Agents
-- **Paywall Agent** - Demonstrates x402 payment integration
-- **News Summarizer** - Local Ollama and DuckDuckGo integration
-- **Cybersecurity Newsletter** - Security hardening and best practices
+### Example Agents
 
-### 📊 Observability
-- Added lightweight in-memory delivery metrics to `NotificationService`
-- Enhanced health endpoint observability
-- Added feedback header to `sentry.py`
+Three new examples contributed by the community:
 
-### ✅ Validation
-- Added early validation for required author field
-- Improved configuration validation
+- **Paywall Agent** — Demonstrates x402 payment integration, showing how to monetize agent responses
+- **News Summarizer** — Uses local Ollama and DuckDuckGo for privacy-friendly news aggregation
+- **Cybersecurity Newsletter** — Security-focused agent for hardening best practices
 
-### 🔄 Release Process
-- Updated release workflow to use week-based versioning (YYYY.W.D)
-- Enhanced PR template with comprehensive review checklist
+### Validation
+
+The `author` field is now validated early in the configuration pipeline. Missing it produces a clear error at startup instead of a confusing failure later.
+
+### Observability
+
+`NotificationService` now tracks lightweight in-memory delivery metrics, and the health endpoint has improved observability.
 
 ---
 
-## Dependency Updates
+## Migration
 
-### Core Dependencies
-- **pydantic:** 2.11.3 → 2.12.5 (resolves fastmcp compatibility)
-- **requests:** 2.32.3 → 2.32.5 (resolves langchain-community compatibility)
-- **sqlalchemy:** 2.0.44 → 2.0.46
-- **tenacity:** 8.5.0 → 9.1.4
-- **rich:** 13.9.4 → 14.3.2
-- **uvx requirement:** `\<2.0` → `\<4.0`
+If upgrading from a version with exact dependency pins, run `uv sync` to pick up the updated packages. Make sure your agent config includes the required `author` field.
 
 ---
 
-## Code Quality
+## Contributors
 
-### 🧹 Cleanup
-- Removed trailing whitespace across codebase
-- Updated secrets baseline with new line numbers
-- Improved code formatting consistency
-
-### 📚 Documentation
-- Enhanced PR template with comprehensive review checklist
-- Improved inline documentation
-- Better code examples
-
----
-
-## Community
-
-### 🎉 Contributions
-- Added GitHub Sponsors funding page
-- Multiple community contributions merged:
-  - PR #172
-  - PR #195
-  - PR #210
-  - PR #211
-  - PR #212
-  - PR #215
-
-### 👥 Contributors
-Special thanks to all contributors who made this release possible:
-- rautsoham03
-- ssjgit08
-- Krushna
-- AseemPrasad
-- Sharda2004196
-- Krushna56
-
----
-
-## Testing
-
-<Check>All tests passing</Check>
-<Check>Pre-commit hooks passing</Check>
-<Check>Schema truncation test fixed and verified</Check>
-<Check>Type checking errors resolved</Check>
-
----
-
-## Migration Notes
-
-### For users upgrading from previous versions
-
-<Steps>
-  <Step title="Update dependencies">
-    If upgrading from versions with exact dependency pins:
-    ```bash
-    uv sync
-    ```
-  </Step>
-
-  <Step title="Schema name handling">
-    Schema names now correctly truncate to 63 characters (PostgreSQL limit). No action needed - this is handled automatically.
-  </Step>
-
-  <Step title="Verify configuration">
-    Ensure your agent configuration includes the required `author` field:
-    ```python
-    config = {
-        "author": "your.email@example.com",  # Required
-        "name": "my_agent",
-        # ... other config
-    }
-    ```
-  </Step>
-</Steps>
-
----
-
-## What's Next
-
-Check out the new example agents:
-- **Paywall Agent** - Learn how to monetize your agents with x402
-- **News Summarizer** - Build agents with local LLMs using Ollama
-- **Cybersecurity Newsletter** - Security best practices for production agents
-
----
-
-## Acknowledgments
-
-Thanks to all contributors who helped improve Bindu through bug reports, code contributions, and community engagement. Special appreciation to the community members who contributed new example agents and helped identify and fix issues.
+Thanks to rautsoham03, ssjgit08, Krushna, AseemPrasad, Sharda2004196, and Krushna56 for their contributions to this release.
