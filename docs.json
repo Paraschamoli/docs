@@ -98,19 +98,14 @@
                 "expanded": true,
                 "pages": [
                   "bindu/introduction/what-is-bindu",
-                  "bindu/introduction/key-concepts",
-                  "bindu/introduction/join-the-internet-agents",
-                  "bindu/how-to/install",
-                  "bindu/create-bindu-agent/overview",
-                  "bindu/create-bindu-agent/configuration",
-                  "bindu/create-bindu-agent/deploy"
+                  "bindu/introduction/bindu-consolidated-guide",
+                  "bindu/create-bindu-agent/configuration"
                 ]
               },
               {
                 "group": "Architecture",
                 "pages": [
-                  "bindu/concepts/architecture",
-                  "bindu/concepts/task-first-pattern",
+                  "bindu/concepts/task-first-and-architecture",
                   "bindu/concepts/protocol"
                 ]
               },
