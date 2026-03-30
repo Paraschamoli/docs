@@ -1,19 +1,19 @@
 ---
-title: 'Agent Implementation'
-description: 'How GrpcAgentClient, the TypeScript SDK, and your handler work together'
+title: "Agent Implementation"
+description: "How GrpcAgentClient, the TypeScript SDK, and your handler work together"
 ---
 
 ## What It Is
 
-Once the sidecar is running, the next question is simple: **how does the core talk to your code?**
+Once the sidecar is running, the next question is simple: how does the core talk to your code?
 
 The answer is `GrpcAgentClient`. It is a Python class that behaves like a function. You call it with messages, it returns a string or dict, and internally it makes a gRPC call to the SDK process.
 
-That is the key bridge between the **engine** and the **driver**.
+That is the key bridge between the engine and the driver.
 
 ## The Problem It Solves
 
-ManifestWorker has this line:
+`ManifestWorker` has this line:
 
 ```python
 raw_results = self.manifest.run(message_history or [])
@@ -21,56 +21,63 @@ raw_results = self.manifest.run(message_history or [])
 
 For Python agents, `manifest.run` is a wrapper around the developer's handler function. It takes a list of message dicts and returns a string or dict.
 
-For TypeScript or Kotlin agents, we need the same call to go over the network. But we do not want to change ManifestWorker because it already handles task state transitions, error handling, tracing, and payment settlement.
+For TypeScript or Kotlin agents, we need the same call to go over the network. But we do not want to change `ManifestWorker` because it already handles task state transitions, error handling, tracing, and payment settlement.
 
-**Solution:** make `GrpcAgentClient` a callable that quacks like a handler function.
-
----
+Solution: make `GrpcAgentClient` a callable that quacks like a handler function.
 
 ## How It Works
 
-This is the bridge in its smallest form:
-
 ```python
 class GrpcAgentClient:
-    def __init__(self, callback_address: str, timeout: float = 30.0):
-        self._address = callback_address  # e.g., "localhost:50052"
+    def __init__(self, callback_address: str, timeout: float = 30.0, use_streaming: bool = False):
+        self._address = callback_address
         self._timeout = timeout
+        self._use_streaming = use_streaming
+        self._channel = None  # lazy-initialized on first call
+        self._stub = None
 
     def __call__(self, messages, **kwargs):
+        self._ensure_connected()  # creates channel + stub on first use
+
         # 1. Convert Python dicts to protobuf
         proto_msgs = [ChatMessage(role=m["role"], content=m["content"]) for m in messages]
         request = HandleRequest(messages=proto_msgs)
 
         # 2. Call the SDK's AgentHandler over gRPC
-        response = self._stub.HandleMessages(request, timeout=self._timeout)
+        if self._use_streaming:
+            return self._handle_streaming(request)  # yields a generator
+
+        response = self._handle_unary(request)
 
         # 3. Convert back to what ManifestWorker expects
         if response.state:
-            return {"state": response.state, "prompt": response.prompt}
-        else:
-            return response.content
+            result = {"state": response.state}
+            if response.prompt:
+                result["prompt"] = response.prompt
+            if response.content:
+                result["content"] = response.content
+            for key, value in response.metadata.items():
+                result[key] = value
+            return result
+
+        return response.content
 ```
 
-Three steps: convert, call, convert back. That is the entire bridge.
-
----
+Three steps: ensure connection, call the SDK, convert back. That is the entire bridge.
 
 ## The Response Contract
 
 Everything downstream depends on this contract. The transport can change, but the return types cannot.
 
 | Handler returns | ManifestWorker does | Task state |
-|----------------|---------------------|------------|
+| --- | --- | --- |
 | `"The capital of France is Paris."` | Creates message + artifact | `completed` |
 | `{"state": "input-required", "prompt": "Can you clarify?"}` | Creates message, keeps task open | `input-required` |
 | `{"state": "auth-required"}` | Creates message, keeps task open | `auth-required` |
 
-GrpcAgentClient returns exactly these types. `ResultProcessor`, `ResponseDetector`, and `ArtifactBuilder` then process them the same way they would process a local Python handler.
+`GrpcAgentClient` returns exactly these types. `ResultProcessor`, `ResponseDetector`, and `ArtifactBuilder` then process them the same way they would process a local Python handler.
 
-That is the bigger pattern again: **the sidecar changes the transport, not the behavior contract**.
-
----
+That is the bigger pattern again: the sidecar changes the transport, not the behavior contract.
 
 ## Real Example
 
@@ -94,8 +101,6 @@ ManifestWorker calls manifest.run(messages)
 
 The only component that knows gRPC exists is the bridge itself.
 
----
-
 ## When It's Created
 
 The bridge gets attached during registration:
@@ -110,13 +115,11 @@ manifest.run = grpc_client  # GrpcAgentClient IS the handler now
 
 From that point on, every task for the agent flows through the client.
 
----
-
 ## Connection Lifecycle
 
 The client connects lazily. The gRPC channel is created on the first call, not during initialization. That avoids connection errors during registration if the SDK server is not fully ready yet.
 
-When the SDK disconnects (`Ctrl+C`, crash), the next `HandleMessages` call fails with `grpc.StatusCode.UNAVAILABLE`. ManifestWorker's existing error handling catches this and marks the task as failed.
+When the SDK disconnects (Ctrl+C, crash), the next `HandleMessages` call fails with `grpc.StatusCode.UNAVAILABLE`. `ManifestWorker`'s existing error handling catches this and marks the task as failed.
 
 ## Health Checks and Capabilities
 
@@ -130,10 +133,14 @@ grpc_client.get_capabilities()   # What can the SDK do? Returns name, version, e
 These are used during heartbeat processing and capability discovery.
 
 <Warning>
-**Current Limitations**
-- **Streaming** - proto defines `HandleMessagesStream` but the client does not implement it. Remote agents can only return complete responses.
-- **Reconnection** - if the SDK crashes, the client does not retry. The agent must be re-registered.
-- **TLS** - uses insecure channels. Only safe on localhost or trusted networks.
+  Current limitations:
+
+  - Streaming — supported via `use_streaming=True` on `GrpcAgentClient`. The SDK's
+    `AgentHandler` must implement `HandleMessagesStream` to use it. The TypeScript SDK
+    currently returns `supports_streaming: false`.
+  - Reconnection — if the SDK crashes, the client does not retry. The agent must be
+    re-registered.
+  - TLS — uses insecure channels. Only safe on localhost or trusted networks.
 </Warning>
 
 ---
@@ -158,9 +165,7 @@ bindufy({
 
 One function call. One terminal. Full microservice.
 
----
-
-## Installation
+### Installation
 
 ```bash
 npm install @bindu/sdk
@@ -169,47 +174,43 @@ pip install bindu
 
 The SDK finds and launches the Python core automatically. You do not start it manually.
 
----
-
-## What Happens When You Call `bindufy()`
-
-The SDK is really an orchestrator for the sidecar lifecycle:
+### What Happens When You Call `bindufy()`
 
 <Steps>
   <Step title="SDK reads your skill files">
-    Loads yaml/markdown skill files from disk
+    Loads yaml/markdown skill files from disk.
   </Step>
 
   <Step title="SDK starts a gRPC server">
-    On a random port. This is where the core will call your handler
+    On a random port. This is where the core will call your handler.
   </Step>
 
   <Step title="SDK spawns bindu serve --grpc">
-    As a child process
+    As a child process.
   </Step>
 
   <Step title="SDK waits for :3774 to be ready">
-    Polls with TCP connect, 30s timeout
+    Polls with TCP connect, 30s timeout.
   </Step>
 
   <Step title="SDK calls RegisterAgent">
-    With your config, skills, and callback address
+    With your config, skills, and callback address.
   </Step>
 
   <Step title="Core runs the full bindufy pipeline">
-    DID, auth, x402, manifest, HTTP server
+    DID, auth, x402, manifest, HTTP server.
   </Step>
 
   <Step title="SDK receives the agent ID, DID, and A2A URL">
-    Registration complete
+    Registration complete.
   </Step>
 
   <Step title="SDK starts a heartbeat loop">
-    Every 30 seconds
+    Every 30 seconds.
   </Step>
 
   <Step title="You see 'Waiting for messages...'">
-    Agent is ready
+    Agent is ready.
   </Step>
 </Steps>
 
@@ -219,7 +220,7 @@ The SDK is really an orchestrator for the sidecar lifecycle:
 
 With the sidecar in place, handler authoring becomes the main job.
 
-### Simple response
+### Simple Response
 
 ```typescript
 async (messages) => {
@@ -261,7 +262,7 @@ async (messages) => {
 }
 ```
 
-### Multi-turn conversation
+### Multi-Turn Conversation
 
 ```typescript
 async (messages) => {
@@ -279,9 +280,9 @@ async (messages) => {
 
 The task stays open after `input-required`. The user sends a follow-up. The core calls your handler again with the full conversation history.
 
-### Error handling
+### Error Handling
 
-If your handler throws, the SDK catches it and returns a gRPC error. ManifestWorker marks the task as failed.
+If your handler throws, the SDK catches it and returns a gRPC error. `ManifestWorker` marks the task as failed.
 
 ```typescript
 async (messages) => {
@@ -289,8 +290,6 @@ async (messages) => {
     return await myLlmCall(messages);
   } catch (err) {
     throw err;
-
-    return "Sorry, I'm having trouble processing your request right now.";
   }
 }
 ```
@@ -334,9 +333,9 @@ bindufy({
 
 ## Skills
 
-The sidecar can only advertise what you describe to it. That is where skills come in.
+The sidecar can only advertise what you describe to it.
 
-### File-based (recommended)
+### File-Based (Recommended)
 
 ```typescript
 bindufy({
@@ -390,7 +389,7 @@ interface RegistrationResult {
 
 When something goes wrong, it usually helps to inspect each half of the sidecar separately.
 
-### Check core logs
+### Check Core Logs
 
 ```text
 [bindu-core] INFO  gRPC server started on 0.0.0.0:3774
@@ -398,16 +397,31 @@ When something goes wrong, it usually helps to inspect each half of the sidecar 
 [bindu-core] INFO  HTTP server started on 0.0.0.0:3773
 ```
 
-### Test the agent manually
+### Test the Agent Manually
 
 ```bash
 curl http://localhost:3773/health
 curl http://localhost:3773/.well-known/agent.json | python3 -m json.tool
-curl -X POST http://localhost:3773 -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"message/send","params":{"message":{"role":"user","parts":[{"kind":"text","text":"Hello"}],"messageId":"test-1","contextId":"test-2","taskId":"test-3","kind":"message"}},"id":"1"}'
+curl -X POST http://localhost:3773 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "message/send",
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [{"kind": "text", "text": "Hello"}],
+        "messageId": "test-1",
+        "contextId": "test-2",
+        "taskId": "test-3",
+        "kind": "message"
+      }
+    },
+    "id": "1"
+  }'
 ```
 
-### Port conflicts
+### Port Conflicts
 
 ```bash
 lsof -ti:3773 -ti:3774 | xargs kill 2>/dev/null
@@ -417,13 +431,13 @@ lsof -ti:3773 -ti:3774 | xargs kill 2>/dev/null
 
 ## Limits to Keep in Mind
 
-This page focuses on implementation. For the full architectural limits, see the overview.
-
 <Warning>
-**Current Limitations**
-- **No streaming** - handler must return complete responses, cannot yield chunks
-- **Requires Python** - the Bindu core must be installed (`pip install bindu`)
-- **Single agent per port** - each `bindufy()` call uses `:3773` for HTTP
+  Current limitations:
+
+  - Streaming — available via `use_streaming=True` but requires SDK-side
+    `HandleMessagesStream` support.
+  - Requires Python — the Bindu core must be installed (`pip install bindu`).
+  - Single agent per port — each `bindufy()` call uses `:3773` for HTTP.
 </Warning>
 
 <CardGroup cols={2}>
@@ -435,8 +449,6 @@ This page focuses on implementation. For the full architectural limits, see the 
   </Card>
 </CardGroup>
 
----
-
 <span className="brand-quote">
   <img
     src="/logo/light.svg"
@@ -444,11 +456,12 @@ This page focuses on implementation. For the full architectural limits, see the 
     width="32"
     className="clean-icon"
   />
+
   <span className="brand-quote-text">
     With the core handling the protocol and identity, your only job is to{" "}
     <span className="brand-quote-highlight">
-      focus on the agent's intelligence -&nbsp;
-    </span>
+      focus on the agent&apos;s intelligence —
+    </span>{" "}
     prompts, state, and tool execution.
   </span>
 </span>

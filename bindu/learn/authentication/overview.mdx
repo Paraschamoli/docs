@@ -3,7 +3,7 @@ title: "Authentication"
 description: "Secure agent access with Ory Hydra"
 ---
 
-When agents are local and short-lived, open access feels harmless. The moment an agent becomes a real network participant, that assumption breaks. You need a way to prove who is calling, what they are allowed to do, and whether a token should still be trusted when it reaches the API boundary.
+When agents are local and short-lived, open access can feel harmless. The moment an agent becomes a real network participant, that assumption breaks. You need a way to prove who is calling, what they are allowed to do, and whether a token should still be trusted when it reaches the API boundary.
 
 Without authentication, access control becomes fragile. Protected methods can be exposed too broadly, tokens cannot be validated consistently, and the agent loses a clean trust boundary between caller and execution.
 
@@ -22,7 +22,8 @@ In an agent network, trust should not depend on a hidden allowlist or a private 
 That is the shift: Bindu uses Ory Hydra so agents can participate in a standard OAuth2 flow, obtain access tokens, and enforce protected access with a clear trust boundary.
 
 <Note>
-If an agent is exposed beyond local development, it should not rely on obscurity for security. It should be able to verify who is calling before sensitive work begins.
+  If an agent is exposed beyond local development, it should not rely on obscurity for
+  security. It should be able to verify who is calling before sensitive work begins.
 </Note>
 
 ## How Bindu Authentication Works
@@ -45,26 +46,28 @@ agent identity -> Hydra client -> access token -> authenticated request
 
 The model is easy to reason about:
 
-- the agent is registered as an OAuth client
-- Hydra issues a `client_secret`
-- the caller exchanges credentials for an access token
-- the token is sent with the API request and validated before access
+- The agent is registered as an OAuth client.
+- Hydra issues a `client_secret`.
+- The caller exchanges credentials for an access token.
+- The token is sent with the API request and validated before access is granted.
 
 <CardGroup cols={3}>
   <Card title="Standard" icon="badge-check">
-    Authentication follows an OAuth2 client credentials flow instead of a custom ad hoc scheme.
+    Authentication follows an OAuth2 client credentials flow instead of a custom ad hoc
+    scheme.
   </Card>
   <Card title="Scoped" icon="key">
     Access tokens carry explicit scopes such as `agent:read` and `agent:write`.
   </Card>
   <Card title="Verifiable" icon="shield-check">
-    Tokens can be introspected against Hydra so access decisions are made with a trusted source of truth.
+    Tokens can be introspected against Hydra so access decisions are made with a trusted
+    source of truth.
   </Card>
 </CardGroup>
 
 ### The Lifecycle: Register, Mint, Verify
 
-Let's break the flow down first, then walk through each stage.
+Let&apos;s break the flow down first, then walk through each stage.
 
 ```mermaid
 sequenceDiagram
@@ -73,11 +76,11 @@ sequenceDiagram
     participant API
 
     Note over Agent,Hydra: 1. Registration (bindufy)
-    Agent->>Hydra: Register OAuth client<br/>(DID as client_id)
+    Agent->>Hydra: Register OAuth client (DID as client_id)
     Hydra-->>Agent: client_secret
 
     Note over Agent,Hydra: 2. Get Token
-    Agent->>Hydra: POST /oauth2/token<br/>(client_credentials grant)
+    Agent->>Hydra: POST /oauth2/token (client_credentials grant)
     Hydra-->>Agent: access_token
 
     Note over Agent,API: 3. API Request
@@ -91,20 +94,29 @@ What this means is simple: Bindu turns agent access into a repeatable trust flow
 
 <Steps>
   <Step title="Register">
-    During `bindufy`, the agent is registered with Hydra as an OAuth client, using the DID as the `client_id`. Hydra returns the `client_secret` needed for future token requests.
+    During `bindufy`, the agent is registered with Hydra as an OAuth client using the
+    full DID string as the `client_id`. Hydra returns the `client_secret` needed for
+    future token requests.
 
-    This matters because the agent now has a formal identity inside the authentication system instead of being treated like an anonymous caller.
+    Bindu saves these OAuth credentials to `oauth_credentials.json` inside the agent's
+    credentials directory, which defaults to `.bindu/`. The file is a map keyed by
+    agent DID.
   </Step>
 
   <Step title="Mint">
-    When you deploy your agent, obtain an access token using the OAuth2 client credentials flow.
+    When you deploy your agent, obtain an access token using the OAuth2 client
+    credentials flow.
+
+    Bindu registers Hydra clients with
+    `token_endpoint_auth_method=client_secret_post`, which means token requests should
+    send the `client_id` and `client_secret` in the form body.
 
     <CodeGroup>
       ```bash Request
       curl -X POST https://hydra.getbindu.com/oauth2/token \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "grant_type=client_credentials" \
-        -d "client_id=did:bindu:<YOUR_AGENT_DID>" \
+        -d "client_id=<YOUR_AGENT_DID>" \
         -d "client_secret=<YOUR_CLIENT_SECRET>" \
         -d "scope=openid offline agent:read agent:write"
       ```
@@ -122,30 +134,27 @@ What this means is simple: Bindu turns agent access into a repeatable trust flow
     Your credentials come from two places:
 
     - **Agent DID**: Found in the agent card at `/.well-known/agent.json`
-    - **Client Secret**: Located in `.bindu/oauth_credentials.json` file
+    - **Client Secret**: Typically located in `.bindu/oauth_credentials.json`
   </Step>
 
   <Step title="Verify">
-    Include the access token in the `Authorization` header for all API requests. The API validates the token before allowing protected operations to continue.
+    When `AUTH__ENABLED=true`, Bindu installs `HydraMiddleware` on the agent server.
+    For non-public endpoints, it intercepts the request, reads the bearer token from
+    the `Authorization` header, and introspects that token against the Hydra Admin API.
 
     ```bash
-    curl --location 'http://localhost:3773/' \
-    --header 'Content-Type: application/json' \
-    --header 'Authorization: Bearer <your-access-token>' \
-    --data '{
-        "jsonrpc": "2.0",
-        "method": "message/send",
-        "params": {
-            "message": {
-                "role": "user",
-                "content": "Hello!"
-            }
-        },
-        "id": 1
-    }'
+    curl --location "http://localhost:3773/" \
+      --header "Content-Type: application/json" \
+      --header "Authorization: Bearer <your-access-token>" \
+      --data "<valid A2A JSON-RPC request body>"
     ```
 
-    The result is a protected request path where identity is checked before execution, not guessed after the fact.
+    If `AUTH__REQUIRE_PERMISSIONS=true`, Bindu will also enforce method-specific scopes
+    like `agent:read` and `agent:write` before the request reaches the handler.
+
+    Optional: if `X-DID`, `X-DID-Signature`, and `X-DID-Timestamp` headers are present,
+    Bindu can perform an additional cryptographic DID-signature verification step on the
+    request body.
   </Step>
 </Steps>
 
@@ -155,7 +164,7 @@ Authentication should be easy to enable when you need it and easy to avoid when 
 
 ### Environment Variables
 
-Configure Hydra connection via environment variables (see `.env.example`):
+Configure Hydra via environment variables:
 
 ```bash
 # Enable authentication
@@ -167,32 +176,33 @@ AUTH__PROVIDER=hydra
 # Hydra endpoints
 HYDRA__ADMIN_URL=https://hydra-admin.getbindu.com
 HYDRA__PUBLIC_URL=https://hydra.getbindu.com
+
+# Optional: enforce strict method-level scopes
+AUTH__REQUIRE_PERMISSIONS=false
 ```
 
-Configuration options:
-
-- `AUTH__ENABLED`: Set to `true` to enable authentication
-- `AUTH__PROVIDER`: Must be `hydra` (only supported provider)
-- `HYDRA__ADMIN_URL`: Hydra Admin API endpoint for client management
-- `HYDRA__PUBLIC_URL`: Hydra Public API endpoint for token operations
+Bindu uses Hydra&apos;s Public API for token minting at `/oauth2/token` and Hydra&apos;s Admin API for token introspection at `/admin/oauth2/introspect`.
 
 ### Agent Configuration
 
-No additional configuration is needed in your agent code. Authentication is handled automatically when environment variables are set.
+No additional configuration is needed in your agent code. Authentication is handled automatically when the required environment variables are set.
 
 This is deliberate. Your agent definition stays focused on behavior, while the environment decides whether the runtime should enforce authentication.
 
-### Standards
+## Standards
 
 <CardGroup cols={3}>
   <Card title="OAuth2" icon="key">
-    Hydra uses the OAuth2 client credentials flow so agents can obtain tokens through a standard authentication model.
+    Hydra uses the OAuth2 client credentials flow so agents can obtain tokens through a
+    standard authentication model.
   </Card>
   <Card title="Ory Hydra" icon="shield">
-    Hydra acts as the centralized authority for client registration, token minting, and token validation.
+    Hydra acts as the centralized authority for client registration, token minting, and
+    token validation.
   </Card>
   <Card title="Scoped Access" icon="sliders">
-    Scopes like `openid`, `offline`, `agent:read`, and `agent:write` keep access explicit.
+    Scopes like `openid`, `offline`, `agent:read`, and `agent:write` keep access
+    explicit.
   </Card>
 </CardGroup>
 
@@ -208,14 +218,14 @@ Use the OAuth2 token endpoint directly when you want explicit control over the a
 curl -X POST https://hydra.getbindu.com/oauth2/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=client_credentials" \
-  -d "client_id=did:bindu:<YOUR_AGENT_DID>" \
+  -d "client_id=<YOUR_AGENT_DID>" \
   -d "client_secret=<YOUR_CLIENT_SECRET>" \
   -d "scope=openid offline agent:read agent:write"
 ```
 
-### Method 2: UI (Recommended for Testing)
+### Method 2: UI
 
-Use the frontend UI to obtain tokens easily:
+Use the frontend UI to obtain tokens more easily during testing:
 
 1. Start the frontend:
 
@@ -224,25 +234,22 @@ Use the frontend UI to obtain tokens easily:
    npm run dev
    ```
 
-2. Navigate to: **Settings → Authentication**
-
-3. Enter your `CLIENT_SECRET` (from `.bindu/oauth_credentials.json`)
-
-4. Click **Get Access Token**
-
-5. Copy the generated token
+2. Navigate to `Settings -> Authentication`.
+3. Enter your `CLIENT_SECRET`, typically found in `.bindu/oauth_credentials.json`.
+4. Click **Get Access Token**.
+5. Copy the generated token.
 
 The difference is simple: the API path is better for explicit automation, while the UI path is easier when you are manually testing.
 
-## The Value Of Authenticated Access
+## The Value of Authenticated Access
 
 Authentication only matters if it creates a cleaner and safer trust boundary.
 
 This model gives you:
 
-- **controlled access** - protected methods are no longer open by default
-- **standardized identity checks** - tokens flow through a well-known OAuth2 model
-- **clearer trust boundaries** - the API can validate who is calling before sensitive work starts
+- Controlled access: protected methods are no longer open by default.
+- Standardized identity checks: tokens flow through a well-known OAuth2 model.
+- Clearer trust boundaries: the API can validate who is calling before sensitive work starts.
 
 This is the point of the whole model: as agents move into real environments, access should become explicit and inspectable instead of informal and fragile.
 
@@ -250,7 +257,9 @@ This is the point of the whole model: as agents move into real environments, acc
 
 <AccordionGroup>
   <Accordion title="Protected production agents">
-    When an agent is exposed publicly or shared across teams, Hydra-backed authentication ensures only token-bearing callers can reach protected functionality.
+    When an agent is exposed publicly or shared across teams, Hydra-backed
+    authentication ensures only token-bearing callers can reach protected
+    functionality.
 
     ```bash
     AUTH__ENABLED=true
@@ -259,20 +268,23 @@ This is the point of the whole model: as agents move into real environments, acc
   </Accordion>
 
   <Accordion title="Automated service-to-service access">
-    If one service or agent needs to call another automatically, the client credentials flow gives it a clean way to request an access token programmatically.
+    If one service or agent needs to call another automatically, the client
+    credentials flow gives it a clean way to request an access token
+    programmatically.
 
     ```bash
     curl -X POST https://hydra.getbindu.com/oauth2/token \
       -H "Content-Type: application/x-www-form-urlencoded" \
       -d "grant_type=client_credentials" \
-      -d "client_id=did:bindu:<YOUR_AGENT_DID>" \
+      -d "client_id=<YOUR_AGENT_DID>" \
       -d "client_secret=<YOUR_CLIENT_SECRET>" \
       -d "scope=openid offline agent:read agent:write"
     ```
   </Accordion>
 
   <Accordion title="Frontend-assisted testing">
-    During local or pre-production testing, the frontend UI gives developers a faster path to token generation without manually crafting every request.
+    During local or pre-production testing, the frontend UI gives developers a
+    faster path to token generation without manually crafting every request.
 
     ```bash
     cd frontend
@@ -285,22 +297,21 @@ This is the point of the whole model: as agents move into real environments, acc
 
 <CardGroup cols={2}>
   <Card title="Keep Client Secrets Private" icon="lock">
-    Treat `.bindu/oauth_credentials.json` as sensitive material and never expose the `client_secret` publicly.
+    Treat the generated OAuth credentials file, typically
+    `.bindu/oauth_credentials.json`, as sensitive material and never expose the
+    `client_secret` publicly.
   </Card>
   <Card title="Use Scopes Deliberately" icon="badge-check">
-    Request only the scopes you actually need so access remains narrow and explicit.
+    Request only the scopes you actually need so access remains narrow and
+    explicit.
   </Card>
 </CardGroup>
 
----
-
 ## Related
 
-* https://www.ory.sh/hydra/
-* https://oauth.net/2/
-* /bindu/learn/did/overview
-
----
+- [Ory Hydra](https://www.ory.sh/hydra/)
+- [OAuth 2.0](https://oauth.net/2/)
+- [Decentralized Identifiers (DIDs)](/bindu/learn/did/overview)
 
 <span className="brand-quote">
   <img
@@ -312,9 +323,7 @@ This is the point of the whole model: as agents move into real environments, acc
 
   <span className="brand-quote-text">
     Bindu helps agents prove who they are -{" "}
-    <span className="brand-quote-highlight">
-      each one independent
-    </span>
-    , making it easy to verify and trust across the Internet of Agents.
+    <span className="brand-quote-highlight">each one independent</span>, making
+    it easy to verify and trust across the Internet of Agents.
   </span>
 </span>
