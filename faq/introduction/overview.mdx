@@ -1,71 +1,260 @@
 ---
 title: 'Frequently Asked Questions'
+description: 'Answers to common questions about Bindu, setup, architecture, and troubleshooting'
 ---
 
-## General
+## General Concepts
 
-### What is Bindu?
+<AccordionGroup>
+  <Accordion title="What is Bindu?">
+    Bindu is an AI agent framework for A2A (Agent-to-Agent communication), AP2, and X402 protocols. It handles infrastructure, identity, observability, and payments, turning any local agent script into a production-ready microservice without rewriting code.
+  </Accordion>
 
-Bindu is an AI agent framework for A2A, AP2, and X402. It handles infrastructure identity, observability, and payments.
+  <Accordion title="What is the A2A Protocol and why does Bindu use it?">
+    The A2A Protocol is a standardized JSON-RPC communication layer. Bindu uses it so agents can communicate, share context, and transfer artifacts regardless of what programming language or framework they were built with.
+  </Accordion>
 
-### How does the A2A protocol work?
-
-The A2A (Agent-to-Agent) protocol is a standardized communication layer. It allows different agents to talk, share information, and collaborate with each other automatically.
-
----
-
-## Getting Started
-
-### How do I create my first agent?
-
-Just add the `bindufy()` function to your code. It takes about two minutes to transform your agent into a web-ready node.
-
-### What are Skills and how do I define them?
-
-Skills are your agent's "powers" like searching the web or querying a database. You define them in a simple configuration file to tell your agent exactly what to do.
+  <Accordion title="When should I use a Workflow vs. a Team (multi-agent team)?">
+    Use a **Workflow** for sequential, step-by-step processing within a single agent (e.g., search -> extract -> summarize). Use a **Team** when you need multiple specialized agents with different identities and tools collaborating on a complex problem.
+  </Accordion>
+</AccordionGroup>
 
 ---
 
-## Agent Discovery & Identity
+## Installation & Setup
 
-### How does agent discovery work?
+<AccordionGroup>
+  <Accordion title="What Python version does Bindu require?">
+    Bindu requires **Python 3.12 or higher**.
+  </Accordion>
 
-Every Bindu agent has a unique digital ID (DID). It makes your agent easy to find, verify, and allows systems to "discover" and communicate for tasks.
+  <Accordion title="How do I install Bindu and its dependencies?">
+    Bindu is optimized for the `uv` package manager. You can install the core framework by running `uv add bindu`.
+  </Accordion>
 
-### How do I integrate with enterprise identity providers?
+  <Accordion title="How do I set up Bindu inside a virtual environment?">
+    Using UV, run `uv venv --python 3.12.9`. Then activate it using `source .venv/bin/activate` (macOS/Linux) or `.venv\Scripts\activate` (Windows) before installing dependencies.
+  </Accordion>
 
-Bindu uses Decentralized Identifiers to keep identities secure. This makes it easy to link your agent's enterprise identity.
+  <Accordion title="Does Bindu work with Conda environments?">
+    Yes, but UV is strongly recommended. If you use Conda, create your environment (`conda create -n bindu-env python=3.12`), activate it, and then run `pip install uv` to manage your Bindu dependencies.
+  </Accordion>
 
----
+  <Accordion title="How do I upgrade Bindu without breaking existing agents?">
+    Run `uv add bindu --upgrade`. Bindu follows semantic versioning, meaning minor and patch updates are backward-compatible.
+  </Accordion>
 
-## Payments & Security
-
-### What is the AP2 payment protocol?
-
-It allows your agent to bill other agents for its services autonomously, handling transactions without you needing to send manual invoices.
-
-### How do I secure my agent with trust levels?
-
-Security is built-in through DID authentication. You can specify which agents are allowed to talk to your other agents.
-
----
-
-## Deployment & Architecture
-
-### Can I deploy agents to production?
-
-Absolutely. Bindu provides the professional routing, error handling, and monitoring you need to scale your agent from a local script to a real-world service.
-
-### What's the difference between agents, teams, and workflows?
-
-- **Agents** - Solo intelligence focused on one job
-- **Workflows** - A set, step-by-step path for agents to follow
-- **Teams** - A group of agents working together to solve complex problems
+  <Accordion title="Can I use Bindu without an internet connection (air-gapped)?">
+    Partially. Bindu can run entirely locally using `InMemoryStorage` and local LLMs (like Ollama). However, initial setup (downloading the LLM weights and installing Python packages) requires an internet connection.
+  </Accordion>
+</AccordionGroup>
 
 ---
 
-## Need More Help?
+## Environment Variables
 
-- **[Documentation](https://docs.getbindu.com)** - Complete guides and references
-- **[Discord](https://discord.gg/3w5zuYUuwt)** - Community discussions and support
-- **[GitHub](https://github.com/getbindu/Bindu)** - Source code and issues
+<AccordionGroup>
+  <Accordion title="Can I use a .env file instead of shell variables?">
+    Yes. Bindu automatically loads variables from a `.env` file in your project root.
+  </Accordion>
+
+  <Accordion title="Which environment variables does Bindu require?">
+    At a minimum, you must set an API key for your chosen LLM provider (e.g., `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, or `MINIMAX_API_KEY`).
+  </Accordion>
+
+  <Accordion title="How do I set environment variables on macOS / Linux?">
+    Use the `export` command in your terminal (e.g., `export BINDU_PORT=4000`), or add them to your `~/.bashrc` or `~/.zshrc` file.
+  </Accordion>
+
+  <Accordion title="How do I set environment variables on Windows?">
+    In PowerShell, use the `$env:` prefix (e.g., `$env:BINDU_PORT="4000"`).
+  </Accordion>
+
+  <Accordion title="How do I manage variables across staging and production?">
+    Create separate files (e.g., `.env.staging` and `.env.production`) and load the specific file in your deployment environment, or inject the variables directly via your CI/CD pipeline.
+  </Accordion>
+
+  <Accordion title="Can I inject environment variables inside a Docker container?">
+    Yes. You can use the `ENV` instruction in your Dockerfile, pass them via `docker run -e`, or use the `environment` mapping in a `docker-compose.yml` file.
+  </Accordion>
+
+  <Accordion title="How do I rotate API keys without restarting my agent?">
+    Bindu delegates API call execution to your driver framework (Agno, LangChain). Most frameworks read the API key at initialization, meaning a restart is usually required unless you implement a custom dynamic key loader in your handler function.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Switching Models
+
+<AccordionGroup>
+  <Accordion title="How do I switch between different LLM providers?">
+    Because Bindu is framework-agnostic, you switch providers by changing the model configuration in your underlying framework (e.g., swapping `OpenAIChat` for `Anthropic` in Agno) and updating your `.env` API keys. Bindu's A2A wrapper does not need to change.
+  </Accordion>
+
+  <Accordion title="How do I use a local model like Ollama or LM Studio with Bindu?">
+    Configure your driver framework to point to your local endpoint (e.g., `http://localhost:11434` for Ollama) and pass that agent to Bindu's `bindufy()` function.
+  </Accordion>
+
+  <Accordion title="Can I use different models for different agents inside the same workflow?">
+    Yes. You can instantiate multiple agents with different models in your underlying framework (e.g., using AG2 GroupChat) and wrap the final orchestration logic in a single Bindu handler.
+  </Accordion>
+
+  <Accordion title="How do I fall back to a cheaper model when my primary model fails?">
+    Implement a standard `try/except` fallback loop or use a framework like Tenacity inside your handler function to catch API errors and retry the prompt with a secondary model instance.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Agent Communication
+
+<AccordionGroup>
+  <Accordion title="How do I connect a Bindu agent to an external A2A-compatible agent?">
+    Because Bindu uses the standard A2A JSON-RPC protocol, you can use any HTTP client (like `httpx` or `requests`) to send a formatted POST request to the external agent's URL from inside your handler.
+  </Accordion>
+
+  <Accordion title="How does Bindu handle agent discovery across a distributed system?">
+    Every Bindu agent has a unique Decentralized Identifier (DID). Agents expose their capabilities and DID via a `.well-known/agent.json` endpoint, allowing for cryptographically verifiable discovery.
+  </Accordion>
+
+  <Accordion title="Can Bindu agents communicate with LangChain or LangGraph agents?">
+    Yes. You simply write your LangChain or LangGraph execution logic inside the `handler` function that you pass to `bindufy()`.
+  </Accordion>
+
+  <Accordion title="How do I pass context and memory between agents in a workflow?">
+    Use the `context_id` provided in the incoming A2A message payload. Passing this ID to subsequent agents ensures they all read and write to the same conversational memory thread.
+  </Accordion>
+
+  <Accordion title="What happens if an agent in the workflow fails mid-task?">
+    The task state transitions to `failed`. If you are using Bindu's built-in retry decorators, the framework will automatically attempt to recover using exponential backoff before permanently failing.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Memory & State
+
+<AccordionGroup>
+  <Accordion title="What types of memory does Bindu support?">
+    Bindu supports Task History (A2A message arrays), Context Memory (threaded conversations), and Agent State. It provides `InMemoryStorage` for testing and `PostgresStorage` for production.
+  </Accordion>
+
+  <Accordion title="How do I persist agent memory across sessions?">
+    Set `STORAGE_TYPE=postgres` and provide a `DATABASE_URL` in your environment variables. Bindu will automatically persist task histories and contexts.
+  </Accordion>
+
+  <Accordion title="How do I give an agent access to a knowledge base or implement RAG?">
+    Bindu delegates Retrieval-Augmented Generation (RAG) to your driver framework. Use tools like Agno's `PDFKnowledgeBase` or LangChain's vector store retrievers inside your handler logic.
+  </Accordion>
+
+  <Accordion title="How do I prevent the context window from overflowing on long tasks?">
+    Context window management (like sliding windows or token summarization) must be handled by your driver framework before passing the message array to the LLM.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Tools & Integrations
+
+<AccordionGroup>
+  <Accordion title="How do I give an agent access to custom tools or APIs?">
+    Define your custom tools as standard Python functions and provide them to your driver framework's tool array. 
+  </Accordion>
+
+  <Accordion title="Can Bindu agents use skills and toolkits directly?">
+    Yes. You can define abstract capabilities in Bindu's `skills/` directory (using YAML or Markdown), which Bindu will advertise publicly. You then implement the actual tools in your handler.
+  </Accordion>
+
+  <Accordion title="How do I connect a Bindu agent to a SQL or vector database?">
+    Use the database or vector integrations provided by your driver framework (e.g., LangChain's `SQLDatabaseToolkit` or Agno's `PgVector`).
+  </Accordion>
+
+  <Accordion title="How do I build a human-in-the-loop step inside a workflow?">
+    If your agent needs human approval, have your handler return a dictionary with `"state": "input-required"` and a `"prompt"` asking for clarification. Bindu will pause the task until the user responds.
+  </Accordion>
+
+  <Accordion title="Does Bindu support web browsing or web scraping?">
+    Bindu delegates this to the driver framework. You can easily attach tools like `DuckDuckGoTools` or `ScrapeGraph` to your agent logic.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Structured Outputs
+
+<AccordionGroup>
+  <Accordion title="How do I get my agent to return structured JSON instead of plain text?">
+    Enforce JSON schemas using your driver framework (e.g., Pydantic `response_model` passing) and ensure your client sends `acceptedOutputModes: ["application/json"]` in the A2A request configuration.
+  </Accordion>
+
+  <Accordion title="Not all models support native structured outputs. What happens then?">
+    If the underlying model does not support native JSON mode, you must prompt the model to return JSON text and manually parse/extract it in your handler function.
+  </Accordion>
+
+  <Accordion title="How do I validate and retry if the agent returns an invalid schema?">
+    Use a retry library like `Tenacity` inside your handler to catch JSON parsing errors or Pydantic `ValidationError`s, and feed the error back to the LLM as a retry prompt.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Rate Limiting & Cost Management
+
+<AccordionGroup>
+  <Accordion title="I'm hitting token-per-minute (TPM) limits. How do I fix this?">
+    TPM limits are enforced by your LLM provider (OpenAI, Anthropic). You can resolve this by adding retry logic with exponential backoff to your handler, or switching to an enterprise tier.
+  </Accordion>
+
+  <Accordion title="How do I run multiple agents in parallel without hitting limits?">
+    Use Bindu's Redis integration by setting `SCHEDULER_TYPE=redis`. This allows you to queue tasks and control worker concurrency across distributed instances.
+  </Accordion>
+
+  <Accordion title="How do I implement request caching or token budgeting?">
+    Request caching and token counting must be implemented inside your driver framework's handler logic before the API call is made.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Debugging & Common Errors
+
+<AccordionGroup>
+  <Accordion title="How do I enable debug logging to trace what my agents are doing?">
+    Set the environment variable `LOGGING__DEFAULT_LEVEL=DEBUG` before starting your agent.
+  </Accordion>
+
+  <Accordion title="I'm getting 'AuthorizationError: JWT verification failed.' What does this mean?">
+    This means the client calling your agent provided an expired or invalid Bearer token. You can disable authentication for local development by setting `AUTH__ENABLED=false`.
+  </Accordion>
+
+  <Accordion title="My agent gets stuck in a tool-calling loop. How do I prevent this?">
+    Tool looping is a model behavior issue. You can prevent it by setting a maximum tool iteration limit in your driver framework (e.g., `max_tool_iterations=5`).
+  </Accordion>
+
+  <Accordion title="Why is my agent hallucinating tool names that don't exist?">
+    This happens when system prompts are ambiguous. Ensure your tool descriptions are highly specific, and use validation inside your handler to catch and reject hallucinated tool calls.
+  </Accordion>
+
+  <Accordion title="How do I test my agents without making real LLM API calls?">
+    Use Python's `unittest.mock.patch` to mock the LLM provider's response, or build a simple mock handler that returns hardcoded text if a `TEST_MODE` environment variable is true.
+  </Accordion>
+
+  <Accordion title="How do I trace agent runs with OpenTelemetry?">
+    Set `TELEMETRY_ENABLED=true` and configure the `OLTP_ENDPOINT` and `OLTP_HEADERS` in your environment. Bindu will automatically export traces to platforms like Langfuse or Arize.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Deployment
+
+<AccordionGroup>
+  <Accordion title="What's the recommended way to deploy a Bindu agent to production?">
+    For production, deploy Bindu inside a Docker container connected to **PostgreSQL** (for storage) and **Redis** (for the task scheduler). Ensure `launch=True` (Tunneling) is disabled.
+  </Accordion>
+
+  <Accordion title="How do I scale a multi-agent crew horizontally?">
+    Deploy multiple instances of your Bindu agent container behind a load balancer. Point all instances to the same Redis instance (`REDIS_URL`) and PostgreSQL database (`DATABASE_URL`) so they can share the task queue and memory state.
+  </Accordion>
+</AccordionGroup>
