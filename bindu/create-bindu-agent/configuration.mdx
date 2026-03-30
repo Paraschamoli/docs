@@ -64,6 +64,8 @@ sequenceDiagram
 
 ## Basic Information
 
+Let's start with the basics - tell us about yourself and your agent!
+
 <ParamField path="author" type="string" default="Your Name">
   Your name or organization name
 </ParamField>
@@ -73,46 +75,68 @@ sequenceDiagram
 </ParamField>
 
 <ParamField path="author_github_handle" type="string" default="your_github_handle">
-  Your GitHub username, this will be used for the github actions.
+  Your GitHub username (we'll use this for GitHub Actions)
 </ParamField>
 
 <ParamField path="project_name" type="string" default="my-bindu-agent">
-  The name of your agent project (will be used for directory name).
+  What should we call your agent project? (this becomes the folder name)
 </ParamField>
 
 <ParamField path="project_description" type="string" default="A Bindu AI agent for intelligent task handling">
-  Brief description of what your agent does
-</ParamField>
-
-<ParamField path="agent_version" type="string" default="1.0.0">
-  Initial version number for your agent.
-</ParamField>
-
-<ParamField path="bindu_version" type="string" default="0.3.19">
-  Version of Bindu to use
+  Briefly describe what your agent does
 </ParamField>
 
 ## Agent Framework
 
+Pick your favorite AI framework - we'll handle all the Bindu integration for you!
+
 <ParamField path="agent_framework" type="select" default="agno">
   Choose your preferred agent framework:
-  - **agno** - Lightweight and fast
-  - **langchain** - Full-featured with extensive integrations
-  - **crew** - Multi-agent orchestration
-  - **fastagent** - High-performance agents
-  - **openai agent** - OpenAI's native agent framework
-  - **google adk agent** - Google's Agent Development Kit
-  - **custom** - Bring your own framework
+  - **agno** - Lightweight and super fast ⚡
+  - **langchain** - Full-featured with tons of integrations 🦜
+  - **crew** - Perfect for multi-agent teams 👥
+  - **fastagent** - High-performance when speed matters 🚀
+  - **openai agent** - Native OpenAI integration 🤖
+  - **google adk agent** - Google's Agent Development Kit 🔍
+  - **custom** - Bring your own framework 🛠️
 </ParamField>
 
 ## Skills And Capabilities
 
-<ParamField path="include_example_skills" type="select" default="y">
-  We do encourage you to include example skills to get started quickly.
-  Because the skills will be used later to advertise the power of the agents to the world.
-  Include example skills to get started quickly
-  - **y** - Include example skills
-  - **n** - Start with a blank slate
+Want to give your agent some special powers? Choose a pre-built skill or start from scratch!
+
+<ParamField path="primary_skill" type="select" default="none">
+  Choose a primary skill for your agent (optional):
+  - **none** - Start fresh and build your own skills 🎯
+  - **finance** - Financial analysis and planning 💰
+  - **financial-coach** - Personal finance coaching 💸
+  - **competitor-analysis** - Market and competitor research 📊
+  - **startup-analyst** - Startup evaluation and analysis 🚀
+  - **explainable-business-reasoning** - Business logic explanation 🧠
+  - **deep-research** - In-depth research capabilities 🔬
+  - **analyze-paper** - Academic paper analysis 📚
+  - **hackernews-analysis** - Hacker News trend analysis 📰
+  - **media-trend-analysis** - Media and trend monitoring 📺
+  - **instagram-post** - Social media content creation 📸
+  - **meme-generator** - Fun meme and content generation 😄
+  - **screenplay-writer** - Creative writing assistance 🎬
+  - **recipe-creator** - Recipe generation and cooking 👨‍🍳
+  - **youtube** - YouTube content optimization 🎥
+  - **web-extraction** - Web data extraction 🌐
+  - **travel-planner** - Travel itinerary planning ✈️
+  - **surprise-travel-planning** - Spontaneous trip suggestions 🎲
+  - **shopping-partner** - Smart shopping assistance 🛍️
+  - **movie-recommender** - Personalized movie recommendations 🎬
+  - **personalized-book-recommendation** - Book suggestions 📖
+  - **breakup-recovery** - Emotional support and healing 💚
+  - **cbt-clinical-critic** - Cognitive behavioral therapy critique 🧠
+  - **cbt-drafter** - CBT content drafting ✍️
+  - **cbt-safety-guardian** - Safety monitoring 🛡️
+  - **cbt-supervisor-orchestrator** - CBT supervision 👨‍⚕️
+  - **system-architect-advisor** - System architecture guidance 🏗️
+  - **biomni** - Biological data analysis 🧬
+  - **legal-consultant** - Legal advice and consultation ⚖️
+  - **zk-policy** - Zero-knowledge policy analysis 🔐
 </ParamField>
 
 <ParamField path="skill_names" type="string" default="question-answering,pdf-processing">
@@ -263,46 +287,28 @@ These options control the tooling that gets generated around the agent project.
   - **none** - No type checking
 </ParamField>
 
-<ParamField path="include_github_actions" type="select" default="y">
-  Include GitHub Actions CI/CD workflows
-  - **y** - Include workflows
-  - **n** - Skip workflows
-</ParamField>
+## GitHub Actions
 
-<ParamField path="mkdocs" type="select" default="y">
-  Include MkDocs documentation setup
-  - **y** - Include MkDocs
-  - **n** - Skip documentation
-</ParamField>
+Want automated CI/CD workflows for testing and deployment?
 
-<ParamField path="codecov" type="select" default="y">
-  Include Codecov integration
-  - **y** - Include Codecov
-  - **n** - Skip Codecov
-</ParamField>
-
-<ParamField path="devcontainer" type="select" default="n">
-  Include VS Code devcontainer configuration
-  - **y** - Include devcontainer
-  - **n** - Skip devcontainer
-</ParamField>
-
-<ParamField path="dockerfile" type="select" default="y">
-  Include Dockerfile for containerization
-  - **y** - Include Dockerfile
-  - **n** - Skip Dockerfile
+<ParamField path="include_github_actions" type="select" default="Yes">
+  Should we include GitHub Actions?
+  - **Yes** - Include automated workflows 🤖
+  - **No** - Skip workflows 🔧
 </ParamField>
 
 ## License
 
-<ParamField path="open_source_license" type="select" default="MIT license">
-  Choose open source license:
-  - **MIT license**
-  - **Apache Software License 2.0**
-  - **BSD license**
-  - **ISC license**
-  - **GNU General Public License v3**
-  - **Not open source**
+What open source license should your agent use?
+
+<ParamField path="open_source_license" type="select" default="Apache Software License 2.0">
+  Choose your license:
+  - **Apache Software License 2.0** - Popular, permissive license 📄
+  - **MIT license** - Simple and permissive 🎯
+  - **BSD license** - Berkeley Software Distribution 🏛️
+  - **ISC license** - Minimal restrictions 📝
+  - **GNU General Public License v3** - Copyleft license ⚖️
+  - **Not open source** - Proprietary code 🔒
 </ParamField>
 
 ## Internal Defaults
