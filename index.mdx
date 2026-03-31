@@ -1,579 +1,260 @@
 ---
 title: Welcome to Bindu
-description: Build A2A-native agents with DID identity, gRPC sidecars, skills, payments, and production-ready infrastructure.
+description: The open-source trust and transaction layer for the autonomous web.
 mode: custom
 ---
 
-export const CodeTabs = ({ tabs, defaultTab }) => {
-  const [activeTab, setActiveTab] = React.useState(defaultTab || tabs[0]?.id);
-  const currentTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
+{/* GLOBAL WRAPPER */}
+<div className="w-full text-neutral-900 dark:text-neutral-50 selection:bg-indigo-500/30 font-sans relative bg-white dark:bg-[#050505]">
+  
+  {/* Import Google Fonts via standard HTML link tags */}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
 
-  return (
-    <div className="flex flex-col gap-5 w-full">
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            .code-tabs-shell {
-              overflow: hidden;
-              border-radius: 18px;
-              border: 1px solid rgba(255,255,255,0.06);
-              background: #111113;
-              box-shadow:
-                0 20px 40px rgba(0,0,0,0.22),
-                0 1px 0 rgba(255,255,255,0.03) inset;
-            }
-
-            .code-tabs-header {
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              gap: 16px;
-              padding: 12px 16px;
-              background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0.05),
-                rgba(255,255,255,0.02)
-              );
-              border-bottom: 1px solid rgba(255,255,255,0.05);
-            }
-
-            .code-tabs-topbar {
-              display: flex;
-              align-items: center;
-              gap: 8px;
-              min-width: 72px;
-            }
-
-            .code-tabs-dot {
-              width: 11px;
-              height: 11px;
-              border-radius: 999px;
-              box-shadow: inset 0 1px 1px rgba(255,255,255,0.25);
-            }
-
-            .code-tabs-dot.red {
-              background: #ff5f57;
-            }
-
-            .code-tabs-dot.yellow {
-              background: #febc2e;
-            }
-
-            .code-tabs-dot.green {
-              background: #28c840;
-            }
-
-            .code-tabs-nav {
-              display: flex;
-              align-items: center;
-              gap: 6px;
-              flex-wrap: wrap;
-              justify-content: center;
-              flex: 1;
-            }
-
-            .code-tab-btn {
-              border: none;
-              background: transparent;
-              color: rgba(255,255,255,0.42);
-              padding: 7px 12px;
-              border-radius: 8px;
-              cursor: pointer;
-              font-size: 14px;
-              font-weight: 500;
-              transition: all 0.2s ease;
-            }
-
-            .code-tab-btn:hover {
-              color: rgba(255,255,255,0.75);
-              background: rgba(255,255,255,0.04);
-            }
-
-            .code-tab-btn.active {
-              color: #ffffff;
-              background: rgba(255,255,255,0.08);
-              box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.05),
-                0 4px 10px rgba(0,0,0,0.18);
-            }
-
-            .code-lang {
-              min-width: 72px;
-              text-align: right;
-              color: rgba(255,255,255,0.28);
-              font-size: 11px;
-              font-weight: 600;
-              letter-spacing: 0.16em;
-              text-transform: uppercase;
-            }
-
-            .code-box {
-              position: relative;
-              padding: 24px;
-              overflow-x: auto;
-            }
-
-            .code-box::before {
-              content: "";
-              position: absolute;
-              inset: 0;
-              background-image:
-                linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
-              background-size: 28px 28px;
-              pointer-events: none;
-            }
-
-            .code-box pre {
-              margin: 0;
-              position: relative;
-              z-index: 1;
-              font-size: 13px;
-              line-height: 1.8;
-              font-family: "JetBrains Mono", "Fira Code", Monaco, Consolas, monospace;
-              color: #e4e4e7;
-            }
-
-            .code-box code {
-              white-space: pre;
-            }
-
-            @media (max-width: 768px) {
-              .code-tabs-header {
-                flex-direction: column;
-                align-items: flex-start;
-              }
-
-              .code-tabs-nav {
-                width: 100%;
-                justify-content: flex-start;
-              }
-
-              .code-lang {
-                display: none;
-              }
-            }
-          `,
-        }}
-      />
-
-      <div className="code-tabs-shell">
-        <div className="code-tabs-header">
-          <div className="code-tabs-topbar">
-            <span className="code-tabs-dot red" />
-            <span className="code-tabs-dot yellow" />
-            <span className="code-tabs-dot green" />
-          </div>
-
-          <div className="code-tabs-nav">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.id;
-
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={isActive ? "code-tab-btn active" : "code-tab-btn"}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <span className="code-lang">
-            {currentTab?.language || "code"}
-          </span>
+  {/* SECTION 1: THE REALITY */}
+  <div className="sticky top-0 h-screen flex flex-col items-center justify-center px-6 text-center z-0 overflow-hidden bg-white dark:bg-[#050505]">
+    
+    {/* Wrapper for JS scaling */}
+    <div id="section-1-content" className="relative z-10 max-w-4xl mx-auto w-full will-change-transform origin-center">
+      
+      {/* Clean, stark typography using DM Serif Display. font-extrabold is removed since this font is naturally thick. */}
+      <h1 
+        style={{ fontFamily: "'DM Serif Display', serif" }} 
+        className="text-6xl sm:text-8xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
+      >
+        The data has <br className="hidden sm:block" />
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-800 dark:from-neutral-200 dark:to-neutral-400">
+          never met.
+        </span>
+      </h1>
+      
+      {/* Relaxed line height and muted text, perfectly aligning with Section 2's paragraph style */}
+      <p className="text-xl sm:text-2xl text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-2xl mx-auto">
+        Humanity has generated an extraordinary amount of knowledge. Scattered across databases, governments, and hospitals. It sits behind paywalls and borders.
+      </p>
+      
+      {/* Tech-focused badge to provide contrast against Section 2's plain text layout */}
+      <div className="mt-12">
+        <div>
+          <p className="text-md font-mono tracking-widest uppercase text-slate-700 dark:text-slate-300 font-bold">
+            That is not a bug. That is reality.
+          </p>
         </div>
+      </div>
+      
+    </div>
+  </div>
 
-        <div className="code-box">
-          <pre>
-            <code>{currentTab?.code}</code>
-          </pre>
+  {/* SECTION 2: THE SHIFT (Slides over Hero) */}
+  <div id="section-2-wrapper" className="sticky top-0 h-screen overflow-hidden z-10 flex flex-col items-center justify-center px-6 text-center bg-white/80 dark:bg-[#080808]/80 backdrop-blur-2xl border-t border-neutral-200 dark:border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.05)] dark:shadow-[0_-30px_60px_rgba(0,0,0,0.6)]">
+    <div id="section-2-content" className="max-w-3xl mx-auto will-change-transform origin-center">
+        <h1 
+          style={{ fontFamily: "'DM Serif Display', serif" }} 
+          className="text-6xl sm:text-8xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
+        >
+          No agent can <br className="hidden sm:block" />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-800 dark:from-neutral-200 dark:to-neutral-400">
+            understand it all.
+          </span>
+        </h1>
+      <p className="text-xl text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        We do not need one mind. We need millions. Specialized agents living close to the data. A medical agent reading scans. A climate agent monitoring satellites. A legal agent navigating Dutch tax law. 
+      </p>
+    </div>
+  </div>
+
+  {/* SECTION 3: THE FRICTION (Slides over Section 2) */}
+  <div id="section-3-wrapper" className="sticky top-0 h-screen overflow-hidden z-20 flex flex-col items-center justify-center px-6 text-center bg-neutral-50 dark:bg-[#0c0c0c] border-t border-neutral-200 dark:border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.05)] dark:shadow-[0_-30px_60px_rgba(0,0,0,0.6)]">
+    <div id="section-3-content" className="max-w-3xl mx-auto will-change-transform origin-center">
+      <h1 
+        style={{ fontFamily: "'DM Serif Display', serif" }} 
+        className="text-6xl sm:text-8xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
+      >
+        But how do they <br className="hidden sm:block" />
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-800 dark:from-neutral-200 dark:to-neutral-400">
+          shake hands?
+        </span>
+      </h1>
+      <p className="text-xl text-neutral-600 dark:text-neutral-400 leading-relaxed mb-8">
+        If these agents cannot find each other, verify identities, negotiate terms, and settle payments autonomously, the network fails. 
+      </p>
+      <div className="inline-flex items-center justify-center px-4 py-2 rounded-sm border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 font-mono text-sm">
+        A human brokering every interaction cannot scale.
+      </div>
+    </div>
+  </div>
+
+  {/* SECTION 4: THE REVEAL (Bindu Core) */}
+  <div id="bindu-core" className="relative z-30 py-32 md:py-48 px-6 border-t border-neutral-200 dark:border-white/5 bg-white dark:bg-[#050505] overflow-hidden">
+    
+    <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center">
+    
+      {/* Headings */}
+      <div className="mb-16 md:mb-24 flex flex-col items-center text-center max-w-4xl mx-auto">
+        <h1 
+          style={{ fontFamily: "'DM Serif Display', serif" }} 
+          className="text-6xl sm:text-8xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
+        >
+          Join Bindu
+        </h1>
+        
+        <p className="text-xl md:text-2xl text-neutral-600 dark:text-neutral-400 max-w-3xl mx-auto leading-relaxed font-light">
+          The open-source trust and transaction layer for the autonomous web. We build the infrastructure so your agents can communicate, negotiate, and trade.
+        </p> <br />
+
+        <p className="text-xl md:text-2xl text-neutral-600 dark:text-neutral-400 max-w-3xl mx-auto leading-relaxed font-light">
+          Explore the documentry.
+        </p>
+      </div>
+
+      {/* Cards Grid: Added mx-auto to center it, fixed gap and standard sizing */}
+      <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
+        
+        {/* Card 1 */}
+        <a
+          href="/bindu/introduction/what-is-bindu"
+          className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
+        >
+          <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
+            <span className="text-[14px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
+              Introduction
+            </span>
+            {/* Replaced empty div with animated arrow icon */}
+            <svg className="h-3.5 w-3.5 text-zinc-400 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+            </svg>
+          </div>
+
+          {/* Soft glare sweep */}
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
+          </div>
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-1 flex-col gap-3 p-6">
+            <h3 className="text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+              Get Started
+            </h3>
+            <p className="text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+              Learn the core concepts and build your first A2A protocol agent.
+            </p>
+          </div>
+        </a>
+
+        {/* Card 2 */}
+        <a
+          href="/bindu/grpc/overview"
+          className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
+        >
+          <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
+            <span className="text-[14px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
+              SDKs
+            </span>
+            <svg className="h-3.5 w-3.5 text-zinc-400 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+            </svg>
+          </div>
+
+          {/* Soft glare sweep */}
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
+          </div>
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-1 flex-col gap-3 p-6">
+            <h3 className="text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+              The Sidecar Architecture
+            </h3>
+            <p className="text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+              Write agent logic in any language while the Python core handles infrastructure.
+            </p>
+          </div>
+        </a>
+
+        {/* Card 3 */}
+        <a
+          href="/examples/beginner/echo-agent"
+          className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
+        >
+          <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
+            <span className="text-[14px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
+              Agent Examples
+            </span>
+            <svg className="h-3.5 w-3.5 text-zinc-400 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+            </svg>
+          </div>
+
+          {/* Soft glare sweep */}
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
+          </div>
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-1 flex-col gap-3 p-6">
+            <h3 className="text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+              Examples
+            </h3>
+            <p className="text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+              Explore production patterns, from basic agents to multi-agent swarms.
+            </p>
+          </div>
+        </a>
+        </div>
+      </div>
+  </div>
+
+  {/* 3. SECTION 5: THE PLEDGE & QUICKSTART */}
+  <div className="relative z-30 py-32 px-6 border-t border-zinc-200 dark:border-white/5 bg-[#FAFAFA] dark:bg-[#0A0A0A]">
+    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      
+      {/* Left Column: The Philosophy (Static & Stable) */}
+      <div className="flex flex-col items-start text-left">
+
+        <h1 
+          style={{ fontFamily: "'DM Serif Display', serif" }} 
+          className="text-6xl sm:text-7xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
+        >
+          The collaboration of agents can <br className="hidden sm:block" />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-800 dark:from-neutral-200 dark:to-neutral-400">
+            change humanity.
+          </span>
+        </h1>
+        
+        <p className="text-lg md:text-xl text-zinc-600 dark:text-zinc-400 font-light leading-relaxed mb-10 max-w-lg">
+          Bindu is an open-source framework. And always will.
+        </p>
+        
+        <div className="flex w-full sm:w-auto">
+          <a 
+            href="https://github.com/GetBindu/Bindu" 
+            target="_blank" 
+            className="group inline-flex items-center justify-center sm:justify-start gap-3 w-full sm:w-auto rounded-full border border-zinc-200 bg-white p-1 pr-5 text-sm font-medium text-zinc-500 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800/80 dark:bg-[#0A0A0A] dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-[#111113] dark:shadow-none"
+          >
+            {/* The Icon Container */}
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-700 transition-colors group-hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:group-hover:bg-zinc-800 dark:group-hover:text-zinc-100">
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+              </svg>
+            </div>
+            
+            {/* The Text */}
+            <span className="transition-colors group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
+              Star on GitHub
+            </span>
+          </a>
+        </div>
+      </div>
+
+      {/* Right Column: Render the component we built above */}
+      <div className="w-full">
+        <div className="lg:p-10">
+          <CodeTabs tabs={codeTabs} defaultTab="python" />
         </div>
       </div>
     </div>
-  );
-};
-
-export const codeTabs = [
-  {
-    id: "python",
-    label: "Basic Agent",
-    language: "python",
-    code: (
-      <>
-        <span style={{ color: "#8B5CF6" }}>from</span> bindu.penguin.bindufy{" "}
-        <span style={{ color: "#8B5CF6" }}>import</span> bindufy{"\n"}
-        {"\n"}
-        config = {"{"}{"\n"}
-        {"    "}
-        <span style={{ color: "#c3e88d" }}>"author"</span>:{" "}
-        <span style={{ color: "#c3e88d" }}>"dev@example.com"</span>,{"\n"}
-        {"    "}
-        <span style={{ color: "#c3e88d" }}>"name"</span>:{" "}
-        <span style={{ color: "#c3e88d" }}>"hello-bindu"</span>,{"\n"}
-        {"    "}
-        <span style={{ color: "#c3e88d" }}>"description"</span>:{" "}
-        <span style={{ color: "#c3e88d" }}>"A simple Bindu agent"</span>,{"\n"}
-        {"    "}
-        <span style={{ color: "#c3e88d" }}>"deployment"</span>: {"{"}
-        <span style={{ color: "#c3e88d" }}>"url"</span>:{" "}
-        <span style={{ color: "#c3e88d" }}>"http://localhost:3773"</span>,{" "}
-        <span style={{ color: "#c3e88d" }}>"expose"</span>:{" "}
-        <span style={{ color: "#8B5CF6" }}>True</span>
-        {"}"},{"\n"}
-        {"}"}{"\n"}
-        {"\n"}
-        <span style={{ color: "#8B5CF6" }}>def</span> handler(messages):{"\n"}
-        {"    "}
-        <span style={{ color: "#8B5CF6" }}>return</span>{" "}
-        <span style={{ color: "#c3e88d" }}>"Hello from Bindu!"</span>
-        {"\n"}
-        {"\n"}
-        bindufy(config, handler)
-      </>
-    ),
-  },
-  {
-    id: "typescript",
-    label: "TypeScript SDK",
-    language: "typescript",
-    code: (
-      <>
-        <span style={{ color: "#8B5CF6" }}>import</span> {"{"} bindufy {"}"}{" "}
-        <span style={{ color: "#8B5CF6" }}>from</span>{" "}
-        <span style={{ color: "#c3e88d" }}>"@getbindu/sdk"</span>;{"\n"}
-        {"\n"}
-        <span style={{ color: "#8B5CF6" }}>const</span> config = {"{"}{"\n"}
-        {"  "}author: <span style={{ color: "#c3e88d" }}>"dev@example.com"</span>,{"\n"}
-        {"  "}name: <span style={{ color: "#c3e88d" }}>"ts-bindu-agent"</span>,{"\n"}
-        {"  "}description:{" "}
-        <span style={{ color: "#c3e88d" }}>"A TypeScript Bindu agent"</span>,{"\n"}
-        {"  "}deployment: {"{"}{"\n"}
-        {"    "}url: <span style={{ color: "#c3e88d" }}>"http://localhost:3773"</span>,{"\n"}
-        {"    "}expose: <span style={{ color: "#8B5CF6" }}>true</span>,{"\n"}
-        {"  "}{"}"},{"\n"}
-        {"}"};{"\n"}
-        {"\n"}
-        <span style={{ color: "#8B5CF6" }}>const</span> handler ={" "}
-        <span style={{ color: "#8B5CF6" }}>async</span> (messages) =&gt; {"{"}{"\n"}
-        {"  "}
-        <span style={{ color: "#8B5CF6" }}>return</span>{" "}
-        <span style={{ color: "#c3e88d" }}>"Hello from TypeScript and Bindu!"</span>;{"\n"}
-        {"}"};{"\n"}
-        {"\n"}
-        <span style={{ color: "#8B5CF6" }}>await</span> bindufy(config, handler);
-      </>
-    ),
-  },
-  {
-    id: "kotlin",
-    label: "Kotlin Agent",
-    language: "kotlin",
-    code: (
-      <>
-        <span style={{ color: "#ff79c6" }}>import</span> com.getbindu.sdk.ChatMessage{"\n"}
-        <span style={{ color: "#ff79c6" }}>import</span> com.getbindu.sdk.bindufy{"\n"}
-        <span style={{ color: "#ff79c6" }}>import</span> java.net.URI{"\n"}
-        <span style={{ color: "#ff79c6" }}>import</span> java.net.http.HttpClient{"\n"}
-        <span style={{ color: "#ff79c6" }}>import</span> java.net.http.HttpRequest{"\n"}
-        <span style={{ color: "#ff79c6" }}>import</span> java.net.http.HttpResponse{"\n"}
-        <span style={{ color: "#ff79c6" }}>import</span> com.google.gson.Gson{"\n"}
-        <span style={{ color: "#ff79c6" }}>import</span> com.google.gson.JsonObject{"\n\n"}
-        
-        <span style={{ color: "#ff79c6" }}>val</span> httpClient: HttpClient = HttpClient.newHttpClient(){"\n"}
-        <span style={{ color: "#ff79c6" }}>val</span> gson = Gson(){"\n\n"}
-        
-        <span style={{ color: "#ff79c6" }}>suspend fun</span> callOpenAI(messages: List{"<"}ChatMessage{">"}): String {"{"}{"\n"}
-        {"    "}<span style={{ color: "#ff79c6" }}>val</span> apiKey = System.getenv(<span style={{ color: "#c3e88d" }}>"OPENAI_API_KEY"</span>){"\n"}
-        {"        "}?: <span style={{ color: "#ff79c6" }}>throw</span> RuntimeException(<span style={{ color: "#c3e88d" }}>"OPENAI_API_KEY not set"</span>){"\n\n"}
-        
-        {"    "}<span style={{ color: "#ff79c6" }}>val</span> messagesJson = messages.map {"{"} msg -{">"}{"\n"}
-        {"        "}mapOf(<span style={{ color: "#c3e88d" }}>"role"</span> to msg.role, <span style={{ color: "#c3e88d" }}>"content"</span> to msg.content){"\n"}
-        {"    "}{"}"}{"\n\n"}
-        
-        {"    "}<span style={{ color: "#ff79c6" }}>val</span> body = gson.toJson(mapOf({" \n"}
-        {"        "}<span style={{ color: "#c3e88d" }}>"model"</span> to <span style={{ color: "#c3e88d" }}>"gpt-4o"</span>,{"\n"}
-        {"        "}<span style={{ color: "#c3e88d" }}>"messages"</span> to messagesJson{"\n"}
-        {"    "})){"\n\n"}
-        
-        {"    "}<span style={{ color: "#ff79c6" }}>val</span> request = HttpRequest.newBuilder(){"\n"}
-        {"        "}.uri(URI.create(<span style={{ color: "#c3e88d" }}>"https://api.openai.com/v1/chat/completions"</span>)){"\n"}
-        {"        "}.header(<span style={{ color: "#c3e88d" }}>"Content-Type"</span>, <span style={{ color: "#c3e88d" }}>"application/json"</span>){"\n"}
-        {"        "}.header(<span style={{ color: "#c3e88d" }}>"Authorization"</span>, <span style={{ color: "#c3e88d" }}>"Bearer $apiKey"</span>){"\n"}
-        {"        "}.POST(HttpRequest.BodyPublishers.ofString(body)){"\n"}
-        {"        "}.build(){"\n\n"}
-        
-        {"    "}<span style={{ color: "#ff79c6" }}>val</span> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString()){"\n"}
-        {"    "}<span style={{ color: "#ff79c6" }}>val</span> json = gson.fromJson(response.body(), JsonObject::class.java){"\n\n"}
-        
-        {"    "}<span style={{ color: "#ff79c6" }}>return</span> json{"\n"}
-        {"        "}.getAsJsonArray(<span style={{ color: "#c3e88d" }}>"choices"</span>){"\n"}
-        {"        "}.get(0).asJsonObject{"\n"}
-        {"        "}.getAsJsonObject(<span style={{ color: "#c3e88d" }}>"message"</span>){"\n"}
-        {"        "}.get(<span style={{ color: "#c3e88d" }}>"content"</span>).asString{"\n"}
-        {"}"}{"\n\n"}
-        
-        <span style={{ color: "#ff79c6" }}>fun</span> main() {"{"}{"\n"}
-        {"    "}bindufy({" \n"}
-        {"        "}config = mapOf({" \n"}
-        {"            "}<span style={{ color: "#c3e88d" }}>"author"</span> to <span style={{ color: "#c3e88d" }}>"dev@example.com"</span>,{"\n"}
-        {"            "}<span style={{ color: "#c3e88d" }}>"name"</span> to <span style={{ color: "#c3e88d" }}>"kotlin-openai-agent"</span>,{"\n"}
-        {"            "}<span style={{ color: "#c3e88d" }}>"description"</span> to <span style={{ color: "#c3e88d" }}>"An assistant built with Kotlin and Bindu"</span>,{"\n"}
-        {"            "}<span style={{ color: "#c3e88d" }}>"version"</span> to <span style={{ color: "#c3e88d" }}>"1.0.0"</span>,{"\n"}
-        {"            "}<span style={{ color: "#c3e88d" }}>"deployment"</span> to mapOf({" \n"}
-        {"                "}<span style={{ color: "#c3e88d" }}>"url"</span> to <span style={{ color: "#c3e88d" }}>"http://localhost:3773"</span>,{"\n"}
-        {"                "}<span style={{ color: "#c3e88d" }}>"expose"</span> to <span style={{ color: "#ff79c6" }}>true</span>,{"\n"}
-        {"                "}<span style={{ color: "#c3e88d" }}>"cors_origins"</span> to listOf(<span style={{ color: "#c3e88d" }}>"http://localhost:5173"</span>){"\n"}
-        {"            "}),{"\n"}
-        {"        "}),{"\n"}
-        {"        "}skills = listOf(<span style={{ color: "#c3e88d" }}>"skills/kotlin-openai-skill"</span>){"\n"}
-        {"    "}) {"{"} messages -{">"}{"\n"}
-        {"        "}<span style={{ color: "#71717a" }}>// Call OpenAI and return the response</span>{"\n"}
-        {"        "}callOpenAI(messages){"\n"}
-        {"    "}{"}"}{"\n"}
-        {"}"}
-      </>
-    ),
-  }
-];
-
-<style>{`
-  @keyframes drift-grid {
-    0% {
-      background-position: 0px 0px, 0px 0px;
-    }
-    100% {
-      background-position: 80px 80px, 80px 80px;
-    }
-  }
-`}</style>
-<div className="relative mx-[calc(50%-50vw)] bg-[#f6f7f9] dark:bg-[#111113] py-16 md:py-16 border-y border-[#e5e7eb] dark:border-zinc-800 overflow-hidden">
-
-<div
-  className="absolute inset-0 pointer-events-none opacity-[0.55] dark:opacity-[0.18]"
-  style={{
-    backgroundImage: `
-      radial-gradient(circle at center, rgba(24,24,27,0.035) 1px, transparent 1px),
-      linear-gradient(to right, rgba(24,24,27,0.025) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(24,24,27,0.025) 1px, transparent 1px)
-    `,
-    backgroundSize: "24px 24px, 96px 96px, 96px 96px",
-    backgroundPosition: "center center",
-    animation: "drift-grid 18s linear infinite",
-    maskImage:
-      "radial-gradient(circle at center, black 45%, transparent 95%)",
-    WebkitMaskImage:
-      "radial-gradient(circle at center, black 45%, transparent 95%)",
-  }}
-/>
-
-  <div className="relative mx-auto flex max-w-6xl flex-col px-5 sm:px-8 lg:px-10">
-    <header className="flex flex-col gap-3 rounded-full border border-[#e5e7eb] dark:border-zinc-700 bg-white dark:bg-zinc-900 px-5 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-3">
-        <span className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-          Bindu
-        </span>
-        <span className="rounded-full border border-[#e5e7eb] dark:border-zinc-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
-          Docs
-        </span>
-      </div>
-      <div className="flex items-center gap-3">
-        <a
-          href="/bindu/introduction/what-is-bindu"
-          className="rounded-full border border-[#d1d5db] dark:border-zinc-600 bg-white dark:bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100 transition hover:bg-zinc-50 dark:hover:bg-zinc-700"
-        >
-          Read the docs
-        </a>
-        <a
-          href="https://github.com/getbindu/bindu"
-          className="rounded-full border border-[#8B5CF6] bg-[#8B5CF6] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(139,92,246,0.25)] transition hover:bg-[#7C3AED]"
-        >
-          View on GitHub
-        </a>
-      </div>
-    </header>
-
-    <section className="mt-20 flex flex-col items-center gap-6 text-center">
-      <style dangerouslySetInnerHTML={{__html: `
-        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&family=Space+Grotesk:wght@600&display=swap');
-
-        @keyframes hero-blur-reveal {
-          0% {
-            opacity: 0;
-            transform: translateY(16px);
-            filter: blur(8px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0);
-            filter: blur(0);
-          }
-        }
-
-        .mac-hero-heading {
-          /* Prioritizes Bricolage Grotesque for that premium agency feel */
-          font-family: "Bricolage Grotesque", "Space Grotesk", "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
-          letter-spacing: -0.03em;
-        }
-
-        .hero-line-1 {
-          display: inline-block;
-          /* Custom cubic-bezier for that signature Apple ease-out */
-          animation: hero-blur-reveal 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        .hero-line-2 {
-          display: inline-block;
-          /* 150ms delay creates a beautiful staggered reading rhythm */
-          animation: hero-blur-reveal 1s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
-          opacity: 0; /* Keeps it hidden before the animation starts */
-        }
-
-        .hero-highlight {
-          /* Sleek, metallic-style text gradient instead of a glowing shadow */
-          background: linear-gradient(135deg, #8B5CF6 0%, #a78bfa 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .dark .hero-highlight {
-          background: linear-gradient(135deg, #a78bfa 0%, #d8b4fe 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-      `}} />
-
-      <h1 className="mac-hero-heading text-4xl font-semibold leading-[1.05] text-zinc-800 dark:text-zinc-200 sm:text-5xl md:text-[68px]">
-        <span className="hero-line-1">
-          The Open-Source Framework
-        </span>
-        <br />
-        <span className="hero-line-2 hero-highlight">
-          for the Internet of Agents
-        </span>
-      </h1>
-
-      <p className="max-w-3xl text-base leading-relaxed text-zinc-600 dark:text-zinc-300 sm:text-lg">
-        Build agents that speak A2A, carry DID-native identity, expose
-        production-ready infrastructure, and still let you write the logic in
-        the language your team prefers.
-      </p>
-
-      <div className="mt-12 grid w-full max-w-5xl grid-cols-1 gap-4 md:grid-cols-3">
-        <a
-          href="/bindu/introduction/what-is-bindu"
-          className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
-        >
-          <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
-            <span className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
-              Introduction
-            </span>
-
-            <div className="w-[52px]" />
-          </div>
-
-          {/* Soft glare sweep */}
-          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-            <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
-          </div>
-
-          {/* Content */}
-          <div className="relative z-10 flex flex-col gap-3 p-5">
-            <div className="flex items-center gap-3">
-              <div>
-                <h3 className="text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-                  Get Started
-                </h3>
-                <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                  Learn the core concepts and build your first A2A protocol agent.
-                </p>
-              </div>
-            </div>
-          </div>
-        </a>
-
-        <a
-          href="/bindu/grpc/overview"
-          className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
-        >
-          <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
-            <span className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
-              SDKs
-            </span>
-
-            <div className="w-[52px]" />
-          </div>
-
-          {/* Soft glare sweep */}
-          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-            <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
-          </div>
-
-          {/* Content */}
-          <div className="relative z-10 flex flex-col gap-3 p-5">
-            <div className="flex items-center gap-3">
-              <div>
-                <h3 className="text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-                  The Sidecar Architecture
-                </h3>
-                <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                  Write agent logic in any language while the Python core handles infrastructure.
-                </p>
-              </div>
-            </div>
-          </div>
-        </a>
-
-        <a
-          href="/examples/beginner/echo-agent"
-          className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
-        >
-          <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
-            <span className="text-[11px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
-              Agent Examples
-            </span>
-
-            <div className="w-[52px]" />
-          </div>
-
-          {/* Soft glare sweep */}
-          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-            <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
-          </div>
-
-          {/* Content */}
-          <div className="relative z-10 flex flex-col gap-3 p-5">
-            <div className="flex items-center gap-3">
-              <div>
-                <h3 className="text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-                  Examples
-                </h3>
-                <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                  Explore production patterns, from basic agents to multi-agent swarms.
-                </p>
-              </div>
-            </div>
-          </div>
-        </a>
-      </div>
-    </section>
-
-    <section className="mt-20 flex flex-col gap-6">
-      <div className="flex flex-col gap-2 text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-zinc-500 dark:text-zinc-400">
-          Build with bindu
-        </p>
-      </div>
-      <div className="lg:p-10">
-        <CodeTabs tabs={codeTabs} defaultTab="python" />
-      </div>
-    </section>
-
-    <section className="mt-20 pb-12">
+    <section className="mt-20 pb-0">
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-5 sm:px-8 lg:grid-cols-5 lg:px-10">
         <div>
           <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
@@ -778,3 +459,154 @@ export const codeTabs = [
     </section>
   </div>
 </div>
+
+export const codeTabs = [
+  {
+    id: "python",
+    label: "Basic Agent",
+    language: "python",
+    code: (
+      <>
+        <span style={{ color: "#8B5CF6" }}>from</span> bindu.penguin.bindufy{" "}
+        <span style={{ color: "#8B5CF6" }}>import</span> bindufy{"\n\n"}
+        config = {"{"}{"\n"}
+        {"    "}<span style={{ color: "#c3e88d" }}>"author"</span>:{" "}
+        <span style={{ color: "#c3e88d" }}>"dev@example.com"</span>,{"\n"}
+        {"    "}<span style={{ color: "#c3e88d" }}>"name"</span>:{" "}
+        <span style={{ color: "#c3e88d" }}>"hello-bindu"</span>,{"\n"}
+        {"    "}<span style={{ color: "#c3e88d" }}>"description"</span>:{" "}
+        <span style={{ color: "#c3e88d" }}>"A simple Bindu agent"</span>,{"\n"}
+        {"    "}<span style={{ color: "#c3e88d" }}>"deployment"</span>: {"{"}{"\n"}
+        {"        "}<span style={{ color: "#c3e88d" }}>"url"</span>:{" "}
+        <span style={{ color: "#c3e88d" }}>"http://localhost:3773"</span>,{"\n"}
+        {"        "}<span style={{ color: "#c3e88d" }}>"expose"</span>:{" "}
+        <span style={{ color: "#8B5CF6" }}>True</span>{"\n"}
+        {"    "}{"}"},{"\n"}
+        {"}"}{"\n\n"}
+        <span style={{ color: "#8B5CF6" }}>def</span> handler(messages):{"\n"}
+        {"    "}<span style={{ color: "#8B5CF6" }}>return</span>{" "}
+        <span style={{ color: "#c3e88d" }}>"Hello from Bindu!"</span>{"\n\n"}
+        bindufy(config, handler)
+      </>
+    ),
+  }
+];
+
+export const CodeTabs = ({ tabs, defaultTab }) => {
+  if (!tabs || tabs.length === 0) return null;
+
+  const [activeTab, setActiveTab] = useState(defaultTab || tabs[0].id);
+  const currentTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
+
+  return (
+    <div className="w-full rounded-2xl bg-[#0A0A0A] border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+      
+      {/* Header Row */}
+      <div className="flex items-center px-4 pt-3 bg-[#111113] border-b border-white/5 shrink-0">
+        
+        {/* Sleek Mac Dots (Slightly smaller for minimalism) */}
+        <div className="flex gap-2 mr-6 sm:mr-8 mb-3 opacity-80 shrink-0">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F56] border border-[#E0443E]/50"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E] border border-[#DEA123]/50"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-[#27C93F] border border-[#1AAB29]/50"></div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex gap-5 sm:gap-6 text-[13px] font-mono text-zinc-500 mt-1 overflow-x-auto scrollbar-hide">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`pb-3 whitespace-nowrap transition-colors border-b-2 outline-none ${
+                  isActive
+                    ? "text-zinc-100 border-indigo-500 font-sans"
+                    : "border-transparent hover:text-zinc-300"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Language Indicator (Right aligned) */}
+        <div className="ml-auto mb-2 hidden sm:block text-[10px] font-mono text-zinc-600 uppercase tracking-widest shrink-0">
+          {currentTab.language || "code"}
+        </div>
+      </div>
+
+      {/* Code Body */}
+      <div className="p-5 sm:p-6 overflow-y-auto flex-1 max-h-[500px]">
+        <pre className="font-mono text-[13px] sm:text-sm leading-[1.8] text-zinc-200 m-0 p-0 bg-transparent">
+          <code>{currentTab.code}</code>
+        </pre>
+      </div>
+      
+    </div>
+  );
+};
+
+
+{/* Lenis Smooth Scroll & Custom Parallax Integration */}
+<script src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+<script dangerouslySetInnerHTML={{ __html: `
+  // Using an interval ensures the script runs only AFTER Lenis loads and React mounts the DOM
+  const initInterval = setInterval(() => {
+    if (typeof Lenis !== 'undefined' && document.querySelector('#bindu-core')) {
+      clearInterval(initInterval);
+      
+      const isDesktop = window.matchMedia("(min-width: 1025px)").matches;
+      
+      if (isDesktop) {
+        const lenis = new Lenis({
+          lerp: 0.07, 
+          normalizeWheel: true,
+          wheelMultiplier: 0.9, 
+          smoothWheel: true,
+        });
+
+        // DOM Elements for Parallax Scaling
+        const sec1Content = document.getElementById('section-1-content');
+        const sec2Wrapper = document.getElementById('section-2-wrapper');
+        const sec2Content = document.getElementById('section-2-content');
+        const sec3Wrapper = document.getElementById('section-3-wrapper');
+        const sec3Content = document.getElementById('section-3-content');
+
+        // Scroll Event Hook
+        lenis.on('scroll', () => {
+          // 1. Calculate Section 2 sliding over Section 1
+          if (sec2Wrapper && sec1Content) {
+            const rect2 = sec2Wrapper.getBoundingClientRect();
+            if (rect2.top <= window.innerHeight && rect2.top >= 0) {
+              const progress = 1 - (rect2.top / window.innerHeight);
+              sec1Content.style.transform = \`scale(\${1 - (progress * 0.08)})\`;
+              sec1Content.style.opacity = 1 - Math.pow(progress, 1.5);
+            }
+          }
+
+          // 2. Calculate Section 3 sliding over Section 2
+          if (sec3Wrapper && sec2Content) {
+            const rect3 = sec3Wrapper.getBoundingClientRect();
+            if (rect3.top <= window.innerHeight && rect3.top >= 0) {
+              const progress = 1 - (rect3.top / window.innerHeight);
+              sec2Content.style.transform = \`scale(\${1 - (progress * 0.08)})\`;
+              sec2Content.style.opacity = 1 - Math.pow(progress, 1.5);
+            }
+          }
+        });
+
+        // RAF Loop
+        function raf(time) {
+          lenis.raf(time);
+          requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+      }
+    }
+  }, 100); // Check every 100ms
+  
+  // Clear interval after 5 seconds just in case, to prevent memory leaks
+  setTimeout(() => clearInterval(initInterval), 5000);
+`}} />
