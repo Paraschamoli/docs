@@ -37,12 +37,14 @@ mode: custom
       {/* Tech-focused badge to provide contrast against Section 2's plain text layout */}
       <div className="mt-12">
         <div>
-          <p className="text-md font-mono tracking-widest uppercase text-slate-700 dark:text-slate-300 font-bold">
+          <p 
+            style={{ fontFamily: "'DM Serif Display', serif" }} 
+            className="text-xl sm:text-2xl font-light tracking-wide mb-8 leading-[1.05] dark:text-neutral-200"
+          >
             That is not a bug. That is reality.
           </p>
         </div>
       </div>
-      
     </div>
   </div>
 
@@ -76,11 +78,14 @@ mode: custom
           shake hands?
         </span>
       </h1>
-      <p className="text-xl text-neutral-600 dark:text-neutral-400 leading-relaxed mb-8">
-        If these agents cannot find each other, verify identities, negotiate terms, and settle payments autonomously, the network fails. 
-      </p>
-      <div className="inline-flex items-center justify-center px-4 py-2 rounded-sm border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 font-mono text-sm">
-        A human brokering every interaction cannot scale.
+      <div className="relative inline-flex flex-col items-center justify-center px-4 py-2">
+        {/* Original Text */}
+        <p
+          style={{ fontFamily: "'DM Serif Display', serif" }}
+          className="relative z-10 text-xl sm:text-2xl font-light tracking-wide text-red-600 dark:text-red-500"
+        >
+          A human brokering every interaction cannot scale.
+        </p>
       </div>
     </div>
   </div>
@@ -463,7 +468,7 @@ mode: custom
 export const codeTabs = [
   {
     id: "python",
-    label: "Basic Agent",
+    label: "Python",
     language: "python",
     code: (
       <>
@@ -489,6 +494,117 @@ export const codeTabs = [
         bindufy(config, handler)
       </>
     ),
+  },
+  {
+    id: "typescript",
+    label: "Typescript",
+    language: "typescript",
+    code: (
+      <>
+        <span style={{ color: "#8B5CF6" }}>import</span> {"{"} bindufy, ChatMessage {"}"} <span style={{ color: "#8B5CF6" }}>from</span> <span style={{ color: "#c3e88d" }}>"@bindu/sdk"</span>;{"\n"}
+        <span style={{ color: "#8B5CF6" }}>import</span> OpenAI <span style={{ color: "#8B5CF6" }}>from</span> <span style={{ color: "#c3e88d" }}>"openai"</span>;{"\n"}
+        <span style={{ color: "#8B5CF6" }}>import</span> * <span style={{ color: "#8B5CF6" }}>as</span> dotenv <span style={{ color: "#8B5CF6" }}>from</span> <span style={{ color: "#c3e88d" }}>"dotenv"</span>;{"\n"}
+        dotenv.config();{"\n\n"}
+        
+        <span style={{ color: "#8B5CF6" }}>const</span> openai = <span style={{ color: "#8B5CF6" }}>new</span> OpenAI({"{"}{"\n"}
+        {"  "}apiKey: process.env.OPENAI_API_KEY,{"\n"}
+        {"}"});{"\n\n"}
+
+        <span style={{ color: "#6b7280" }}>// bindufy — one call, full microservice</span>{"\n"}
+        bindufy({"{"}{"\n"}
+        {"  "}author: <span style={{ color: "#c3e88d" }}>"opnai-sample-ts@getbindu.com"</span>,{"\n"}
+        {"  "}name: <span style={{ color: "#c3e88d" }}>"openai-assistant-agent"</span>,{"\n"}
+        {"  "}description: <span style={{ color: "#c3e88d" }}>"An assistant built with the OpenAI SDK and Bindu. Powered by GPT-4o."</span>,{"\n"}
+        {"  "}version: <span style={{ color: "#c3e88d" }}>"1.0.0"</span>,{"\n"}
+        {"  "}deployment: {"{"}{"\n"}
+        {"    "}url: <span style={{ color: "#c3e88d" }}>"http://localhost:3773"</span>,{"\n"}
+        {"    "}expose: <span style={{ color: "#8B5CF6" }}>true</span>,{"\n"}
+        {"    "}cors_origins: [<span style={{ color: "#c3e88d" }}>"http://localhost:5173"</span>],{"\n"}
+        {"  "}{"}"},{"\n"}
+        {"  "}skills: [<span style={{ color: "#c3e88d" }}>"skills/typescript-openai-skill"</span>],{"\n"}
+        {"}"}, <span style={{ color: "#8B5CF6" }}>async</span> (messages: ChatMessage[]) {"=>"} {"{"}{"\n"}
+        {"  "}<span style={{ color: "#6b7280" }}>// Call OpenAI GPT-4o</span>{"\n"}
+        {"  "}<span style={{ color: "#8B5CF6" }}>const</span> response = <span style={{ color: "#8B5CF6" }}>await</span> openai.chat.completions.create({"{"}{"\n"}
+        {"    "}model: process.env.OPENAI_MODEL || <span style={{ color: "#c3e88d" }}>"gpt-4o"</span>,{"\n"}
+        {"    "}messages: messages.map((m) {"=>"} ({"{"}{"\n"}
+        {"      "}role: m.role <span style={{ color: "#8B5CF6" }}>as</span> <span style={{ color: "#c3e88d" }}>"user"</span> | <span style={{ color: "#c3e88d" }}>"assistant"</span> | <span style={{ color: "#c3e88d" }}>"system"</span>,{"\n"}
+        {"      "}content: m.content,{"\n"}
+        {"    "}{"}"})),{"\n"}
+        {"  "}{"}"});{"\n"}
+        {"  "}<span style={{ color: "#8B5CF6" }}>return</span> response.choices[0].message.content || <span style={{ color: "#c3e88d" }}>""</span>;{"\n"}
+        {"}"});
+      </>
+    ),
+  },
+  {
+    id: "kotlin",
+    label: "Kotlin",
+    language: "kotlin",
+    code: (
+      <>
+        <span style={{ color: "#8B5CF6" }}>import</span> com.getbindu.sdk.ChatMessage{"\n"}
+        <span style={{ color: "#8B5CF6" }}>import</span> com.getbindu.sdk.bindufy{"\n"}
+        <span style={{ color: "#8B5CF6" }}>import</span> java.net.URI{"\n"}
+        <span style={{ color: "#8B5CF6" }}>import</span> java.net.http.HttpClient{"\n"}
+        <span style={{ color: "#8B5CF6" }}>import</span> java.net.http.HttpRequest{"\n"}
+        <span style={{ color: "#8B5CF6" }}>import</span> java.net.http.HttpResponse{"\n"}
+        <span style={{ color: "#8B5CF6" }}>import</span> com.google.gson.Gson{"\n"}
+        <span style={{ color: "#8B5CF6" }}>import</span> com.google.gson.JsonObject{"\n\n"}
+        
+        <span style={{ color: "#8B5CF6" }}>val</span> httpClient: HttpClient = HttpClient.newHttpClient(){"\n"}
+        <span style={{ color: "#8B5CF6" }}>val</span> gson = Gson(){"\n\n"}
+        
+        <span style={{ color: "#8B5CF6" }}>suspend</span> <span style={{ color: "#8B5CF6" }}>fun</span> callOpenAI(messages: List{"<"}ChatMessage{">"}): String {"{"}{"\n"}
+        {"    "}<span style={{ color: "#8B5CF6" }}>val</span> apiKey = System.getenv(<span style={{ color: "#c3e88d" }}>"OPENAI_API_KEY"</span>){"\n"}
+        {"        "}?: <span style={{ color: "#8B5CF6" }}>throw</span> RuntimeException(<span style={{ color: "#c3e88d" }}>"OPENAI_API_KEY not set"</span>){"\n\n"}
+        
+        {"    "}<span style={{ color: "#8B5CF6" }}>val</span> messagesJson = messages.map {"{"} msg {"->"}{"\n"}
+        {"        "}mapOf(<span style={{ color: "#c3e88d" }}>"role"</span> to msg.role, <span style={{ color: "#c3e88d" }}>"content"</span> to msg.content){"\n"}
+        {"    "}{"}"}{"\n\n"}
+        
+        {"    "}<span style={{ color: "#8B5CF6" }}>val</span> body = gson.toJson(mapOf({"\n"}
+        {"        "}<span style={{ color: "#c3e88d" }}>"model"</span> to <span style={{ color: "#c3e88d" }}>"gpt-4o"</span>,{"\n"}
+        {"        "}<span style={{ color: "#c3e88d" }}>"messages"</span> to messagesJson{"\n"}
+        {"    "})){"\n\n"}
+        
+        {"    "}<span style={{ color: "#8B5CF6" }}>val</span> request = HttpRequest.newBuilder(){"\n"}
+        {"        "}.uri(URI.create(<span style={{ color: "#c3e88d" }}>"https://api.openai.com/v1/chat/completions"</span>)){"\n"}
+        {"        "}.header(<span style={{ color: "#c3e88d" }}>"Content-Type"</span>, <span style={{ color: "#c3e88d" }}>"application/json"</span>){"\n"}
+        {"        "}.header(<span style={{ color: "#c3e88d" }}>"Authorization"</span>, <span style={{ color: "#c3e88d" }}>"Bearer $apiKey"</span>){"\n"}
+        {"        "}.POST(HttpRequest.BodyPublishers.ofString(body)){"\n"}
+        {"        "}.build(){"\n\n"}
+        
+        {"    "}<span style={{ color: "#8B5CF6" }}>val</span> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString()){"\n"}
+        {"    "}<span style={{ color: "#8B5CF6" }}>val</span> json = gson.fromJson(response.body(), JsonObject::class.java){"\n\n"}
+        
+        {"    "}<span style={{ color: "#8B5CF6" }}>return</span> json{"\n"}
+        {"        "}.getAsJsonArray(<span style={{ color: "#c3e88d" }}>"choices"</span>){"\n"}
+        {"        "}.get(0).asJsonObject{"\n"}
+        {"        "}.getAsJsonObject(<span style={{ color: "#c3e88d" }}>"message"</span>){"\n"}
+        {"        "}.get(<span style={{ color: "#c3e88d" }}>"content"</span>).asString{"\n"}
+        {"}"}{"\n\n"}
+        
+        <span style={{ color: "#8B5CF6" }}>fun</span> main() {"{"}{"\n"}
+        {"    "}bindufy({"\n"}
+        {"        "}config = mapOf({"\n"}
+        {"            "}<span style={{ color: "#c3e88d" }}>"author"</span> to <span style={{ color: "#c3e88d" }}>"dev@example.com"</span>,{"\n"}
+        {"            "}<span style={{ color: "#c3e88d" }}>"name"</span> to <span style={{ color: "#c3e88d" }}>"kotlin-openai-agent"</span>,{"\n"}
+        {"            "}<span style={{ color: "#c3e88d" }}>"description"</span> to <span style={{ color: "#c3e88d" }}>"An assistant built with Kotlin and Bindu"</span>,{"\n"}
+        {"            "}<span style={{ color: "#c3e88d" }}>"version"</span> to <span style={{ color: "#c3e88d" }}>"1.0.0"</span>,{"\n"}
+        {"            "}<span style={{ color: "#c3e88d" }}>"deployment"</span> to mapOf({"\n"}
+        {"                "}<span style={{ color: "#c3e88d" }}>"url"</span> to <span style={{ color: "#c3e88d" }}>"http://localhost:3773"</span>,{"\n"}
+        {"                "}<span style={{ color: "#c3e88d" }}>"expose"</span> to <span style={{ color: "#8B5CF6" }}>true</span>,{"\n"}
+        {"                "}<span style={{ color: "#c3e88d" }}>"cors_origins"</span> to listOf(<span style={{ color: "#c3e88d" }}>"http://localhost:5173"</span>){"\n"}
+        {"            "}),{"\n"}
+        {"        "}),{"\n"}
+        {"        "}skills = listOf(<span style={{ color: "#c3e88d" }}>"skills/kotlin-openai-skill"</span>){"\n"}
+        {"    "}) {"{"} messages {"->"}{"\n"}
+        {"        "}<span style={{ color: "#6b7280" }}>// Call OpenAI and return the response</span>{"\n"}
+        {"        "}callOpenAI(messages){"\n"}
+        {"    "}{"}"}{"\n"}
+        {"}"}
+      </>
+    ),
   }
 ];
 
@@ -499,55 +615,69 @@ export const CodeTabs = ({ tabs, defaultTab }) => {
   const currentTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
 
   return (
-    <div className="w-full rounded-2xl bg-[#0A0A0A] border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+    <div className="w-full overflow-hidden rounded-3xl border border-zinc-200/90 bg-white/90 shadow-[0_10px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 isolate dark:border-white/10 dark:bg-[#0b0b0d] dark:shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
       
-      {/* Header Row */}
-      <div className="flex items-center px-4 pt-3 bg-[#111113] border-b border-white/5 shrink-0">
+      {/* Header */}
+      <div className="relative flex items-center gap-10 border-b border-zinc-200/70 bg-zinc-50/90 px-5 pt-4 dark:border-white/5 dark:bg-[#131316] sm:px-6">
         
-        {/* Sleek Mac Dots (Slightly smaller for minimalism) */}
-        <div className="flex gap-2 mr-6 sm:mr-8 mb-3 opacity-80 shrink-0">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F56] border border-[#E0443E]/50"></div>
-          <div className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E] border border-[#DEA123]/50"></div>
-          <div className="w-2.5 h-2.5 rounded-full bg-[#27C93F] border border-[#1AAB29]/50"></div>
+        {/* Mac Dots */}
+        <div className="mb-3.5 flex shrink-0 items-center gap-2">
+          <div className="h-3 w-3 rounded-full bg-[#FF5F57]" />
+          <div className="h-3 w-3 rounded-full bg-[#FEBC2E]" />
+          <div className="h-3 w-3 rounded-full bg-[#28C840]" />
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex gap-5 sm:gap-6 text-[13px] font-mono text-zinc-500 mt-1 overflow-x-auto scrollbar-hide">
+        {/* Tabs */}
+        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
+
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`pb-3 whitespace-nowrap transition-colors border-b-2 outline-none ${
+                className={`group relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl px-4 py-2.5 text-[12px] font-medium leading-none tracking-[0.03em] outline-none transition-all duration-300 ease-out sm:text-[13px] ${
                   isActive
-                    ? "text-zinc-100 border-indigo-500 font-sans"
-                    : "border-transparent hover:text-zinc-300"
+                    ? "bg-gradient-to-b from-zinc-900 to-black text-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-black/5 dark:from-white dark:to-zinc-200 dark:text-zinc-900 dark:shadow-[0_8px_24px_rgba(255,255,255,0.08)] dark:ring-white/10"
+                    : "text-zinc-500 hover:bg-zinc-100/90 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-100"
                 }`}
               >
-                {tab.label}
+                {isActive && (
+                  <>
+                    <div className="pointer-events-none absolute inset-0 rounded-xl bg-[linear-gradient(to_bottom,rgba(255,255,255,0.12),transparent_45%)] dark:bg-[linear-gradient(to_bottom,rgba(255,255,255,0.35),transparent_50%)]" />
+                    <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-white/40 blur-sm dark:bg-black/20" />
+                  </>
+                )}
+
+                <span className="relative z-10 flex items-center gap-2 font-[Inter] font-semibold">
+                  {tab.label}
+                </span>
               </button>
             );
           })}
         </div>
+      </div>
 
-        {/* Language Indicator (Right aligned) */}
-        <div className="ml-auto mb-2 hidden sm:block text-[10px] font-mono text-zinc-600 uppercase tracking-widest shrink-0">
-          {currentTab.language || "code"}
+      {/* Code Area */}
+      <div className="relative bg-[#0A0A0A]">
+        
+        {/* Top Glow */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+        {/* Scrollable Code Container (Scrollbars hidden here!) */}
+        <div className="max-h-[500px] overflow-auto overscroll-contain [contain:layout_paint] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="min-w-max p-5 sm:p-6">
+            <pre className="m-0 bg-transparent p-0 font-mono text-[13px] leading-7 text-zinc-200 antialiased sm:text-[14px]">
+              <code className="block whitespace-pre">
+                {currentTab.code}
+              </code>
+            </pre>
+          </div>
         </div>
       </div>
-
-      {/* Code Body */}
-      <div className="p-5 sm:p-6 overflow-y-auto flex-1 max-h-[500px]">
-        <pre className="font-mono text-[13px] sm:text-sm leading-[1.8] text-zinc-200 m-0 p-0 bg-transparent">
-          <code>{currentTab.code}</code>
-        </pre>
-      </div>
-      
     </div>
   );
 };
-
 
 {/* Lenis Smooth Scroll & Custom Parallax Integration */}
 <script src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
@@ -581,7 +711,7 @@ export const CodeTabs = ({ tabs, defaultTab }) => {
             const rect2 = sec2Wrapper.getBoundingClientRect();
             if (rect2.top <= window.innerHeight && rect2.top >= 0) {
               const progress = 1 - (rect2.top / window.innerHeight);
-              sec1Content.style.transform = \`scale(\${1 - (progress * 0.08)})\`;
+              sec1Content.style.transform = "scale(" + (1 - (progress * 0.08)) + ")";
               sec1Content.style.opacity = 1 - Math.pow(progress, 1.5);
             }
           }
@@ -591,7 +721,7 @@ export const CodeTabs = ({ tabs, defaultTab }) => {
             const rect3 = sec3Wrapper.getBoundingClientRect();
             if (rect3.top <= window.innerHeight && rect3.top >= 0) {
               const progress = 1 - (rect3.top / window.innerHeight);
-              sec2Content.style.transform = \`scale(\${1 - (progress * 0.08)})\`;
+              sec2Content.style.transform = "scale(" + (1 - (progress * 0.08)) + ")";
               sec2Content.style.opacity = 1 - Math.pow(progress, 1.5);
             }
           }
@@ -605,7 +735,7 @@ export const CodeTabs = ({ tabs, defaultTab }) => {
         requestAnimationFrame(raf);
       }
     }
-  }, 100); // Check every 100ms
+  }, 100); 
   
   // Clear interval after 5 seconds just in case, to prevent memory leaks
   setTimeout(() => clearInterval(initInterval), 5000);
