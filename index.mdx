@@ -12,86 +12,101 @@ mode: custom
   <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
 
-  {/* SECTION 1: THE REALITY */}
-  <div className="sticky top-0 h-screen flex flex-col items-center justify-center px-6 text-center z-0 overflow-hidden bg-white dark:bg-[#050505]">
+  {/* SPLIT SCREEN WRAPPER FOR PARALLAX SECTIONS */}
+  <div className="flex flex-col md:flex-row w-full relative">
     
-    {/* Wrapper for JS scaling */}
-    <div id="section-1-content" className="relative z-10 max-w-4xl mx-auto w-full will-change-transform origin-center">
-      
-      {/* Clean, stark typography using DM Serif Display. font-extrabold is removed since this font is naturally thick. */}
+    {/* LEFT HALF: STICKY TITLE */}
+    {/* Full screen height on mobile to hide the right half below the fold, stays pinned on desktop */}
+    {/* Replaced md:bg-white/50 with md:bg-[#f3f3ea]/50 */}
+    <div className="md:w-1/2 w-full h-screen relative md:sticky top-0 flex flex-col items-center justify-center p-8 z-20 bg-[#fcfcf4] dark:bg-[#050505] md:bg-[#fcfcf4] md:dark:bg-[#050505]/50 md:backdrop-blur-md">
       <h1 
         style={{ fontFamily: "'DM Serif Display', serif" }} 
-        className="text-6xl sm:text-8xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
+        className="text-6xl lg:text-8xl font-light tracking-wide leading-[1.05] dark:text-neutral-200 text-center"
       >
-        The data has <br className="hidden sm:block" />
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-800 dark:from-neutral-200 dark:to-neutral-400">
-          never met.
+        Bindu <br className="hidden md:block" />
+        <span className="text-4xl lg:text-5xl bg-clip-text bg-gradient-to-r font-extralight tracking-widest text-neutral-900 dark:text-neutral-300 mt-2 block">
+          -&nbsp;Philosophy
         </span>
       </h1>
+    </div>
+
+    {/* RIGHT HALF: SCROLLING / STACKING CONTENT */}
+    {/* This container will naturally be 300vh tall due to its three h-screen children */}
+    <div className="md:w-1/2 w-full relative">
       
-      {/* Relaxed line height and muted text, perfectly aligning with Section 2's paragraph style */}
-      <p className="text-xl sm:text-2xl text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-2xl mx-auto">
-        Humanity has generated an extraordinary amount of knowledge. Scattered across databases, governments, and hospitals. It sits behind paywalls and borders.
-      </p>
-      
-      {/* Tech-focused badge to provide contrast against Section 2's plain text layout */}
-      <div className="mt-12">
-        <div>
-          <p 
+      {/* SECTION 1: THE REALITY */}
+      <div className="sticky top-0 h-screen flex flex-col items-center justify-center px-6 text-center z-0 overflow-hidden bg-[#fcfcf4] dark:bg-[#050505]">
+        <div id="section-1-content" className="relative z-10 max-w-xl mx-auto w-full will-change-transform origin-center">
+          <h2 
             style={{ fontFamily: "'DM Serif Display', serif" }} 
-            className="text-xl sm:text-2xl font-light tracking-wide mb-8 leading-[1.05] dark:text-neutral-200"
+            className="text-6xl lg:text-7xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
           >
-            That is not a bug. That is reality.
+            The data has <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-800 dark:from-neutral-200 dark:to-neutral-400">
+              never met.
+            </span>
+          </h2>
+          <p className="text-lg lg:text-xl text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-md mx-auto">
+            Humanity has generated an extraordinary amount of knowledge. Scattered across databases, governments, and hospitals. It sits behind paywalls and borders.
+          </p>
+          <div className="mt-12">
+            <p 
+              style={{ fontFamily: "'DM Serif Display', serif" }} 
+              className="text-xl lg:text-2xl font-light tracking-wide mb-8 leading-[1.05] dark:text-neutral-200"
+            >
+              That is not a bug. That is reality.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 2: THE SHIFT (Slides over Hero) */}
+      <div id="section-2-wrapper" className="sticky top-0 h-screen overflow-hidden z-10 flex flex-col items-center justify-center px-6 text-center bg-[#fcfcf4] dark:bg-[#050505] border-t border-neutral-200 dark:border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.05)] dark:shadow-[0_-30px_60px_rgba(0,0,0,0.6)]">
+        <div id="section-2-content" className="max-w-xl mx-auto will-change-transform origin-center">
+          <h2 
+            style={{ fontFamily: "'DM Serif Display', serif" }} 
+            className="text-5xl lg:text-6xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
+          >
+            No agent can <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-800 dark:from-neutral-200 dark:to-neutral-400">
+              understand it all.
+            </span>
+          </h2>
+          <p className="text-lg lg:text-xl text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            We do not need one mind. We need millions. Specialized agents living close to the data. A medical agent reading scans. A climate agent monitoring satellites. A legal agent navigating Dutch tax law. 
           </p>
         </div>
       </div>
-    </div>
-  </div>
 
-  {/* SECTION 2: THE SHIFT (Slides over Hero) */}
-  <div id="section-2-wrapper" className="sticky top-0 h-screen overflow-hidden z-10 flex flex-col items-center justify-center px-6 text-center bg-white/80 dark:bg-[#080808]/80 backdrop-blur-2xl border-t border-neutral-200 dark:border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.05)] dark:shadow-[0_-30px_60px_rgba(0,0,0,0.6)]">
-    <div id="section-2-content" className="max-w-3xl mx-auto will-change-transform origin-center">
-        <h1 
-          style={{ fontFamily: "'DM Serif Display', serif" }} 
-          className="text-6xl sm:text-8xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
-        >
-          No agent can <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-800 dark:from-neutral-200 dark:to-neutral-400">
-            understand it all.
-          </span>
-        </h1>
-      <p className="text-xl text-neutral-600 dark:text-neutral-400 leading-relaxed">
-        We do not need one mind. We need millions. Specialized agents living close to the data. A medical agent reading scans. A climate agent monitoring satellites. A legal agent navigating Dutch tax law. 
-      </p>
-    </div>
-  </div>
-
-  {/* SECTION 3: THE FRICTION (Slides over Section 2) */}
-  <div id="section-3-wrapper" className="sticky top-0 h-screen overflow-hidden z-20 flex flex-col items-center justify-center px-6 text-center bg-neutral-50 dark:bg-[#0c0c0c] border-t border-neutral-200 dark:border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.05)] dark:shadow-[0_-30px_60px_rgba(0,0,0,0.6)]">
-    <div id="section-3-content" className="max-w-3xl mx-auto will-change-transform origin-center">
-      <h1 
-        style={{ fontFamily: "'DM Serif Display', serif" }} 
-        className="text-6xl sm:text-8xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
-      >
-        But how do they <br className="hidden sm:block" />
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-800 dark:from-neutral-200 dark:to-neutral-400">
-          shake hands?
-        </span>
-      </h1>
-      <div className="relative inline-flex flex-col items-center justify-center px-4 py-2">
-        {/* Original Text */}
-        <p
-          style={{ fontFamily: "'DM Serif Display', serif" }}
-          className="relative z-10 text-xl sm:text-2xl font-light tracking-wide text-red-600 dark:text-red-500"
-        >
-          A human brokering every interaction cannot scale.
-        </p>
+      {/* SECTION 3: THE FRICTION (Slides over Section 2) */}
+      <div id="section-3-wrapper" className="sticky top-0 h-screen overflow-hidden z-20 flex flex-col items-center justify-center px-6 text-center bg-[#fcfcf4] dark:bg-[#050505] shadow-[0_-20px_50px_rgba(0,0,0,0.05)] dark:shadow-[0_-30px_60px_rgba(0,0,0,0.6)]">
+        <div id="section-3-content" className="max-w-xl mx-auto will-change-transform origin-center">
+          <h2 
+            style={{ fontFamily: "'DM Serif Display', serif" }} 
+            className="text-5xl lg:text-6xl font-medium tracking-tight mb-8 leading-[1.05] dark:text-neutral-200"
+          >
+            But how do they <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-900 to-neutral-800 dark:from-neutral-200 dark:to-neutral-400">
+              shake hands?
+            </span>
+          </h2>
+          <div className="relative inline-flex flex-col items-center justify-center px-4 py-2">
+            <p
+              style={{ fontFamily: "'DM Serif Display', serif" }}
+              className="relative z-10 text-lg lg:text-xl font-light tracking-wide text-red-600 dark:text-red-500"
+            >
+              A human brokering every interaction cannot scale.
+            </p>
+          </div>
+        </div>
       </div>
+
     </div>
   </div>
 
   {/* SECTION 4: THE REVEAL (Bindu Core) */}
-  <div id="bindu-core" className="relative z-30 py-32 md:py-48 px-6 border-t border-neutral-200 dark:border-white/5 bg-white dark:bg-[#050505] overflow-hidden">
+  {/* This acts as the anchor point that ends the sticky scrolling and slides over the split-screen */}
+  <div id="bindu-core" className="relative z-30 py-32 md:py-48 px-6 bg-[#fcfcf4] dark:bg-[#050505] overflow-hidden">
     
     <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center">
     
@@ -113,30 +128,25 @@ mode: custom
         </p>
       </div>
 
-      {/* Cards Grid: Added mx-auto to center it, fixed gap and standard sizing */}
+      {/* Cards Grid */}
       <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
         
         {/* Card 1 */}
         <a
           href="/bindu/introduction/what-is-bindu"
-          className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
+          className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-zinc-300/90 bg-[#fcfcf1] p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
         >
           <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
             <span className="text-[14px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
               Introduction
             </span>
-            {/* Replaced empty div with animated arrow icon */}
             <svg className="h-3.5 w-3.5 text-zinc-400 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
             </svg>
           </div>
-
-          {/* Soft glare sweep */}
           <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
             <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
           </div>
-
-          {/* Content */}
           <div className="relative z-10 flex flex-1 flex-col gap-3 p-6">
             <h3 className="text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
               Get Started
@@ -150,7 +160,7 @@ mode: custom
         {/* Card 2 */}
         <a
           href="/bindu/grpc/overview"
-          className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
+          className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-zinc-300/90 bg-[#fcfcf1] p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
         >
           <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
             <span className="text-[14px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -160,13 +170,9 @@ mode: custom
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
             </svg>
           </div>
-
-          {/* Soft glare sweep */}
           <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
             <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
           </div>
-
-          {/* Content */}
           <div className="relative z-10 flex flex-1 flex-col gap-3 p-6">
             <h3 className="text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
               The Sidecar Architecture
@@ -180,7 +186,7 @@ mode: custom
         {/* Card 3 */}
         <a
           href="/examples/beginner/echo-agent"
-          className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-300/90 bg-white/90 p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
+          className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-zinc-300/90 bg-[#fcfcf1] p-0 shadow-[0_10px_30px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-zinc-300 hover:shadow-[0_18px_50px_rgba(0,0,0,0.10)] dark:border-white/10 dark:bg-[#111113]/95 dark:shadow-[0_18px_50px_rgba(0,0,0,0.30)] dark:hover:border-zinc-600"
         >
           <div className="flex items-center justify-between border-b border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-3 dark:border-white/5 dark:from-white/[0.05] dark:to-white/[0.02]">
             <span className="text-[14px] font-medium tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -190,13 +196,9 @@ mode: custom
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
             </svg>
           </div>
-
-          {/* Soft glare sweep */}
           <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
             <div className="absolute inset-y-0 left-[-30%] w-[35%] rotate-[12deg] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-1000 group-hover:left-[120%] group-hover:opacity-100 dark:via-white/10" />
           </div>
-
-          {/* Content */}
           <div className="relative z-10 flex flex-1 flex-col gap-3 p-6">
             <h3 className="text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
               Examples
@@ -206,12 +208,12 @@ mode: custom
             </p>
           </div>
         </a>
-        </div>
       </div>
+    </div>
   </div>
 
   {/* 3. SECTION 5: THE PLEDGE & QUICKSTART */}
-  <div className="relative z-30 py-32 px-6 border-t border-zinc-200 dark:border-white/5 bg-[#FAFAFA] dark:bg-[#0A0A0A]">
+  <div className="relative z-30 py-32 px-6 bg-[#fcfcf4] dark:bg-[#050505]">
     <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
       
       {/* Left Column: The Philosophy (Static & Stable) */}
@@ -235,7 +237,7 @@ mode: custom
           <a 
             href="https://github.com/GetBindu/Bindu" 
             target="_blank" 
-            className="group inline-flex items-center justify-center sm:justify-start gap-3 w-full sm:w-auto rounded-full border border-zinc-200 bg-white p-1 pr-5 text-sm font-medium text-zinc-500 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800/80 dark:bg-[#0A0A0A] dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-[#111113] dark:shadow-none"
+            className="group inline-flex items-center justify-center sm:justify-start gap-3 w-full sm:w-auto rounded-full border border-zinc-200 bg-[#fcf9f0] p-1 pr-5 text-md font-medium text-zinc-600 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800/80 dark:bg-[#0A0A0A] dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-[#111113] dark:shadow-none"
           >
             {/* The Icon Container */}
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-700 transition-colors group-hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:group-hover:bg-zinc-800 dark:group-hover:text-zinc-100">
@@ -615,7 +617,7 @@ export const CodeTabs = ({ tabs, defaultTab }) => {
   const currentTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
 
   return (
-    <div className="w-full overflow-hidden rounded-3xl border border-zinc-200/90 bg-white/90 shadow-[0_10px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 isolate dark:border-white/10 dark:bg-[#0b0b0d] dark:shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+    <div className="w-full overflow-hidden rounded-2xl border border-zinc-200/90 bg-white/90 shadow-[0_10px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 isolate dark:border-white/10 dark:bg-[#0b0b0d] dark:shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
       <div className="relative flex items-center gap-10 border-b border-zinc-200/70 bg-zinc-50/90 px-5 pt-4 dark:border-white/5 dark:bg-[#131316] sm:px-6">
         <div className="mb-3.5 flex shrink-0 items-center gap-2">
           <div className="h-3 w-3 rounded-full bg-[#FF5F57]" />
