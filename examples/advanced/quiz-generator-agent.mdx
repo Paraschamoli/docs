@@ -1,0 +1,305 @@
+---
+title: "3.8 Quiz Generator Agent"
+---
+
+A TypeScript-based agent that generates educational quizzes using LangChain and OpenRouter.
+
+## Code
+
+Create `quiz-generator-agent.ts` with the code below, or save it directly from your editor.
+
+```typescript
+/**
+ * Quiz Generator Agent (TypeScript + LangChain + OpenRouter + Bindu)
+ */
+
+import { bindufy, ChatMessage } from "@bindu/sdk";
+import { ChatOpenAI } from "@langchain/openai";
+import * as dotenv from "dotenv";
+
+dotenv.config();
+
+/**
+ * LLM Setup (OpenRouter)
+ * IMPORTANT: OpenRouter works via baseURL override
+ */
+const llm = new ChatOpenAI({
+  model: "openai/gpt-oss-120b", // same as your Python version
+  temperature: 0.3,
+  configuration: {
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_API_KEY,
+  },
+});
+
+/**
+ * System Prompt (your original instructions)
+ */
+const SYSTEM_PROMPT = `
+You are a professional teacher. Your task is to generate a quiz based on the provided text.
+
+1. Create exactly 10 Multiple Choice Questions (MCQs).
+2. For each question, provide 4 options: A, B, C, and D.
+3. Ensure only one answer is correct.
+4. Provide a 1-sentence explanation for why the correct answer is right.
+5. Keep language clear and academic.
+
+Output format:
+
+# 📝 Quiz: Knowledge Check
+
+---
+
+### Question 1
+[Question text here]
+A) [Option A]
+B) [Option B]
+C) [Option C]
+D) [Option D]
+
+**Correct Answer:** [A/B/C/D]
+**Explanation:** [Brief explanation]
+
+---
+
+(Repeat for questions 2 through 10)
+`;
+
+/**
+ * bindufy — converts into full microservice
+ */
+bindufy(
+  {
+    author: "your.email@example.com",
+    name: "quiz-generator-agent",
+    description: "Educational assessment expert for MCQ generation",
+    version: "1.0.0",
+    deployment: {
+      url: "http://localhost:3773",
+      expose: true,
+      cors_origins: ["http://localhost:5173"],
+    },
+    skills: ["skills/quiz-generation"],
+    capabilities: {
+      streaming: false,
+      push_notifications: false,
+    },
+  },
+
+  /**
+   * Handler
+   */
+  async (messages: ChatMessage[]) => {
+    try {
+      if (!messages || messages.length === 0) {
+        return "Error: No input provided.";
+      }
+
+      // Extract latest user input (better than passing full history blindly)
+      const userInput = messages[messages.length - 1].content;
+
+      // Construct LangChain messages
+      const langchainMessages = [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userInput },
+      ];
+
+      // Call LLM
+      const response = await llm.invoke(langchainMessages);
+
+      // Return response
+      return typeof response.content === "string"
+        ? response.content
+        : JSON.stringify(response.content);
+    } catch (error: any) {
+      return `Error: ${error.message}`;
+    }
+  }
+);
+```
+
+## Skill Configuration
+
+Create `skills/quiz-generation/skill.yaml`:
+
+```yaml
+id: quiz-generation
+name: Quiz Generation Skill
+version: 1.0.0
+author: your.email@example.com
+description: |
+  Advanced educational assessment skill that generates professional
+  multiple-choice quizzes from any provided text or topic.
+
+  Features:
+  - Generates exactly 10 MCQs per request
+  - 4 options per question (A, B, C, D)
+  - One correct answer per question
+  - Brief explanations for each correct answer
+  - Academic language and clear formatting
+  - Structured output with markdown
+
+  Uses LangChain with OpenRouter's GPT-OSS-120b model
+  for high-quality educational content generation.
+tags:
+  - education
+  - quiz
+  - assessment
+  - mcq
+  - learning
+  - teaching
+  - evaluation
+input_modes:
+  - application/json
+output_modes:
+  - application/json
+examples:
+  - "Generate a quiz about World War II"
+  - "Create a quiz based on this chapter about photosynthesis"
+  - "Make a quiz about basic mathematics concepts"
+  - "Generate assessment questions for this programming tutorial"
+capabilities_detail:
+  quiz_generation:
+    supported: true
+    description: "Generates 10-question multiple-choice quizzes"
+    features:
+      - structured_formatting
+      - academic_language
+      - answer_explanations
+  educational_assessment:
+    supported: true
+    description: "Creates professional educational assessments"
+    methodology: "MCQ format with 4 options and explanations"
+  content_processing:
+    supported: true
+    description: "Processes provided text to generate relevant questions"
+  output_formatting:
+    supported: true
+    description: "Structured markdown output with clear formatting"
+```
+
+## How It Works
+
+**TypeScript Integration**
+- Uses `@bindu/sdk` for Bindu protocol compliance
+- LangChain integration with `@langchain/openai`
+- Type-safe development with TypeScript
+
+**LLM Configuration**
+- OpenRouter API via baseURL override
+- GPT-OSS-120b model for high-quality output
+- Low temperature (0.3) for consistent quiz generation
+
+**Quiz Generation**
+- System prompt with detailed formatting instructions
+- Exactly 10 MCQs per request
+- 4 options per question (A, B, C, D)
+- One correct answer with explanation
+- Academic language and structured markdown output
+
+**Error Handling**
+- Graceful error handling with descriptive messages
+- Input validation for message arrays
+- Response type checking and formatting
+
+## Dependencies
+
+```bash
+# Initialize TypeScript project
+npm init -y
+
+# Install dependencies
+npm install @bindu/sdk @langchain/openai dotenv
+
+# Install TypeScript and development dependencies
+npm install -D typescript @types/node ts-node
+```
+
+## Environment Setup
+
+Create `.env` file:
+```bash
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+```
+
+## Run
+
+```bash
+# Compile and run TypeScript
+npx ts-node quiz-generator-agent.ts
+
+# Or compile first then run
+npx tsc quiz-generator-agent.ts
+node quiz-generator-agent.js
+```
+
+**Examples:**
+
+- "Generate a quiz about World War II"
+- "Create a quiz based on this chapter about photosynthesis"
+- "Make a quiz about basic mathematics concepts"
+- "Generate assessment questions for this programming tutorial"
+
+## Example API Calls
+
+<AccordionGroup>
+  <Accordion title="Message Send Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "kind": "message",
+      "messageId": "9f11c870-5616-49ad-b187-d93cbb100001",
+      "contextId": "9f11c870-5616-49ad-b187-d93cbb100002",
+      "taskId": "9f11c870-5616-49ad-b187-d93cbb100003",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "Generate a quiz about World War II"
+        }
+      ]
+    },
+     "skillId": "quiz-generation",
+    "configuration": {
+      "acceptedOutputModes": ["application/json"]
+    }
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100003"
+}
+```
+  </Accordion>
+  
+  <Accordion title="Task get Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tasks/get",
+  "params": {
+    "taskId": "9f11c870-5616-49ad-b187-d93cbb100003"
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100004"
+}
+```
+  </Accordion>
+</AccordionGroup>
+
+## Frontend Setup
+
+```bash
+# Clone the Bindu repository
+git clone https://github.com/GetBindu/Bindu
+
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start frontend development server
+npm run dev
+```
+
+Open http://localhost:5173 and try to chat with the quiz generator agent

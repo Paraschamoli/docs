@@ -1,0 +1,195 @@
+---
+title: "1.11 MiniMax Research Agent"
+---
+
+A Bindu agent powered by MiniMax's M2.7 model via OpenAI-compatible API.
+
+## Code
+
+Create `minimax_example.py` with the code below, or save it directly from your editor.
+
+```python
+"""MiniMax AI Research Agent
+
+A Bindu agent powered by MiniMax's M2.7 model via OpenAI-compatible API.
+MiniMax offers high-performance models with up to 1M context window.
+
+Features:
+- MiniMax M2.7 model (1M context)
+- Web search integration via DuckDuckGo
+- Research and summarization capabilities
+
+Usage:
+    python minimax_example.py
+
+Environment:
+    Requires MINIMAX_API_KEY in .env file
+    Get your API key at https://platform.minimaxi.com
+"""
+
+import os
+from bindu.penguin.bindufy import bindufy
+from agno.agent import Agent
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.models.openai import OpenAILike
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# MiniMax API configuration
+MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY")
+MINIMAX_BASE_URL = "https://api.minimax.io/v1"
+
+# Define your agent with MiniMax M2.7
+agent = Agent(
+    instructions="You are a research assistant that finds and summarizes information.",
+    model=OpenAILike(
+        id="MiniMax-M2.7",
+        api_key=MINIMAX_API_KEY,
+        base_url=MINIMAX_BASE_URL,
+    ),
+    tools=[DuckDuckGoTools()],
+)
+
+
+# Configuration
+config = {
+    "author": "your.email@example.com",
+    "name": "minimax_research_agent",
+    "description": "A research assistant agent powered by MiniMax AI",
+    "deployment": {
+        "url": os.getenv("BINDU_DEPLOYMENT_URL", "http://localhost:3773"),
+        "expose": True,
+        "cors_origins": ["http://localhost:5173"]
+    },
+}
+
+
+# Handler function
+def handler(messages: list[dict[str, str]]):
+    """Process messages and return agent response.
+
+    Args:
+        messages: List of message dictionaries containing conversation history
+
+    Returns:
+        Agent response result
+    """
+    result = agent.run(input=messages)
+    return result
+
+
+# Bindu-fy it
+if __name__ == "__main__":
+    bindufy(config, handler)
+```
+
+## How It Works
+
+**MiniMax Integration**
+- Uses MiniMax M2.7 model with 1M context window
+- OpenAI-compatible API via `OpenAILike` model wrapper
+- High-performance research and analysis capabilities
+
+**Web Search**
+- `DuckDuckGoTools()`: Enables web search for current information
+- Research assistant can find and summarize information from the web
+- Combines web search with MiniMax's powerful reasoning
+
+**Configuration**
+- Environment variable for deployment URL flexibility
+- Standard Bindu deployment on localhost:3773
+- CORS enabled for frontend integration
+
+## Dependencies
+
+```bash
+uv init
+uv add bindu agno python-dotenv
+```
+
+## Environment Setup
+
+Create `.env` file:
+```bash
+MINIMAX_API_KEY=your_minimax_api_key_here
+BINDU_DEPLOYMENT_URL=http://localhost:3773
+```
+
+Get your MiniMax API key at [https://platform.minimaxi.com](https://platform.minimaxi.com)
+
+## Run
+
+```bash
+uv run minimax_example.py
+```
+
+**Examples:**
+
+- "Research the latest developments in quantum computing"
+- "Find information about climate change and its effects"
+- "Summarize current trends in artificial intelligence"
+
+## Example API Calls
+
+<AccordionGroup>
+  <Accordion title="Message Send Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "kind": "message",
+      "messageId": "9f11c870-5616-49ad-b187-d93cbb100001",
+      "contextId": "9f11c870-5616-49ad-b187-d93cbb100002",
+      "taskId": "9f11c870-5616-49ad-b187-d93cbb100003",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "Research the latest developments in quantum computing"
+        }
+      ]
+    },
+    "configuration": {
+      "acceptedOutputModes": ["application/json"]
+    }
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100003"
+}
+```
+  </Accordion>
+  
+  <Accordion title="Task get Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tasks/get",
+  "params": {
+    "taskId": "9f11c870-5616-49ad-b187-d93cbb100003"
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100004"
+}
+```
+  </Accordion>
+</AccordionGroup>
+
+## Frontend Setup
+
+```bash
+# Clone the Bindu repository
+git clone https://github.com/GetBindu/Bindu
+
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start frontend development server
+npm run dev
+```
+
+Open http://localhost:5173 and try to chat with the MiniMax research agent

@@ -1,0 +1,346 @@
+---
+title: "2.11 PDF Research Agent"
+---
+
+A Bindu agent that processes PDF files and generates structured summaries.
+
+## Code
+
+Create `pdf_research_agent.py` with the code below, or save it directly from your editor.
+
+```python
+"""
+PDF Research Agent Example for Bindu
+
+This example agent accepts either a PDF file path or raw text and
+returns a structured summary. It demonstrates how to wrap a simple
+document-processing workflow using `bindufy()` so that agent becomes
+a live service.
+
+Prerequisites
+-------------
+    uv add bindu agno pypdf python-dotenv
+
+Usage
+-----
+    export OPENROUTER_API_KEY="your_api_key_here"  # pragma: allowlist secret
+    python pdf_research_agent.py
+
+The agent will be live at http://localhost:3773
+Send it a message like:
+    {"role": "user", "content": "/path/to/paper.pdf"}
+or paste raw text directly as the message content.
+"""
+from bindu.penguin.bindufy import bindufy
+from agno.agent import Agent
+from agno.models.openrouter import OpenRouter
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+# ---------------------------------------------------------------------------
+# 1. Helper — extract text from a PDF path or pass raw text straight through
+# ---------------------------------------------------------------------------
+
+def _read_content(source: str) -> str:
+    """Return plain text from a PDF file path, or return source string itself."""
+    if source.strip().endswith(".pdf") and os.path.isfile(source.strip()):
+        try:
+            from pypdf import PdfReader  # optional dependency
+            reader = PdfReader(source.strip())
+            pages = [page.extract_text() or "" for page in reader.pages]
+            text = "\n\n".join(pages)
+            if len(text.strip()) < 100:
+                return f"PDF file '{source.strip()}' appears to be empty or contains very little text."
+            return text
+        except ImportError:
+            return (
+                f"[pypdf not installed — cannot read '{source.strip()}'. "
+                "Run: uv add pypdf]"
+            )
+        except Exception as e:
+            return f"Error reading PDF '{source.strip()}': {str(e)}"
+    return source  # treat as raw document text
+
+
+# ---------------------------------------------------------------------------
+# 2. Agent definition
+# ---------------------------------------------------------------------------
+
+agent = Agent(
+    instructions=(
+        "You are a research assistant that reads documents and produces clear, "
+        "concise summaries. When given document text:\n"
+        "  1. Identify the main topic or thesis.\n"
+        "  2. List the key findings or arguments (3-5 bullet points).\n"
+        "  3. Note any important conclusions or recommendations.\n"
+        "Be factual and brief. If the text is too short or unclear, say so."
+    ),
+    model=OpenRouter(
+        id="openai/gpt-4o-mini",
+        api_key=os.getenv("OPENROUTER_API_KEY")
+    ),
+    markdown=True,  # Enable markdown formatting for better output
+)
+
+
+# ---------------------------------------------------------------------------
+# 3. Bindu configuration
+# ---------------------------------------------------------------------------
+
+config = {
+    "author": "your.email@example.com",
+    "name": "pdf_research_agent",
+    "description": "Summarizes PDF files and document text using OpenRouter.",
+    "version": "1.0.0",
+    "capabilities": {
+        "file_processing": ["pdf"],
+        "text_analysis": ["summarization", "research"],
+        "streaming": False
+    },
+     "skills": ["skills/pdf-research-skill"],
+    "auth": {"enabled": False},
+    "storage": {"type": "memory"},
+    "scheduler": {"type": "memory"},
+    "deployment": {
+        "url": "http://localhost:3773",
+        "expose": True,
+        "cors_origins": ["http://localhost:5173"],
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# 4. Handler — the bridge between Bindu messages and the agent
+# ---------------------------------------------------------------------------
+
+def handler(messages: list[dict[str, str]]):
+    """
+    Receive a conversation history from Bindu, extract the latest user
+    message, read its content (PDF or raw text), and return a summary.
+
+    Args:
+        messages: Standard A2A message list, e.g.
+                  [{"role": "user", "content": "/path/to/doc.pdf"}]
+
+    Returns:
+        Agent response with the document summary.
+    """
+    try:
+        # Grab the most recent user message
+        user_messages = [m for m in messages if m.get("role") == "user"]
+        if not user_messages:
+            return "No user message found. Please send a PDF path or document text."
+
+        user_input = user_messages[-1].get("content", "").strip()
+        if not user_input:
+            return "Empty message received. Please provide a PDF path or document text."
+
+        document_text = _read_content(user_input)
+
+        # Check if document processing failed
+        if document_text.startswith("[") or document_text.startswith("Error"):
+            return document_text
+
+        # Limit document size to prevent token overflow
+        if len(document_text) > 50000:
+            document_text = document_text[:50000] + "\n\n[Document truncated for processing...]"
+
+        # Build a prompt that includes the full document text
+        prompt = f"Summarize the following document and highlight the key insights:\n\n{document_text}"
+        enriched_messages = [{"role": "user", "content": prompt}]
+
+        result = agent.run(input=enriched_messages)
+        return result
+
+    except Exception as e:
+        return f"Error processing request: {str(e)}"
+
+
+# ---------------------------------------------------------------------------
+# 5. Bindu-fy the agent — one call turns it into a live microservice
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    print("🚀 PDF Research Agent running at http://localhost:3773")
+    print("📄 Send PDF paths or paste document text to get summaries")
+    print("🔧 Example: {\"role\": \"user\", \"content\": \"/path/to/paper.pdf\"}")
+    bindufy(config, handler)
+```
+
+## Skill Configuration
+
+Create `skills/pdf-research-skill/skill.yaml`:
+
+```yaml
+id: pdf-research-skill
+name: PDF Research Skill
+version: 1.0.0
+author: your.email@example.com
+description: |
+  Advanced document processing skill that reads PDF files and
+  generates structured, concise summaries for research purposes.
+
+  Features:
+  - PDF file reading with pypdf integration
+  - Raw text processing support
+  - Document summarization with key insights
+  - Topic identification and thesis extraction
+  - Key findings and conclusions extraction
+  - Structured markdown output
+
+  Uses OpenRouter's GPT-4o-mini for efficient document analysis
+  and provides research-quality summaries with minimal processing time.
+tags:
+  - pdf
+  - document
+  - summarization
+  - research
+  - analysis
+  - text-processing
+input_modes:
+  - application/json
+output_modes:
+  - application/json
+examples:
+  - "Summarize this research paper: /path/to/paper.pdf"
+  - "Analyze this document about climate change"
+  - "Extract key insights from this PDF report"
+  - "Process this academic paper on machine learning"
+capabilities_detail:
+  pdf_processing:
+    supported: true
+    description: "Reads and extracts text from PDF files"
+    dependencies: ["pypdf"]
+  document_summarization:
+    supported: true
+    description: "Generates concise summaries of document content"
+    features:
+      - topic_identification
+      - key_findings_extraction
+      - conclusions_highlighting
+  text_analysis:
+    supported: true
+    description: "Analyzes raw text content when PDF not provided"
+  research_assistance:
+    supported: true
+    description: "Provides research-quality document analysis"
+```
+
+## How It Works
+
+**PDF Processing**
+- `_read_content()`: Helper function that handles PDF file reading
+- Uses `pypdf` library for PDF text extraction
+- Falls back to raw text processing for non-PDF inputs
+- Graceful error handling for missing dependencies
+
+**Document Analysis**
+- Identifies main topic or thesis from document
+- Extracts 3-5 key findings or arguments
+- Notes important conclusions and recommendations
+- Fact-based, concise summaries
+
+**Input Flexibility**
+- Accepts both PDF file paths and raw text
+- Automatic detection of input type
+- File validation and error reporting
+- Document size limits to prevent token overflow
+
+**Safety Features**
+- Token limit protection (50,000 characters)
+- Dependency checking with helpful error messages
+- Input validation and sanitization
+- Graceful failure recovery
+
+## Dependencies
+
+```bash
+uv init
+uv add bindu agno pypdf python-dotenv
+```
+
+## Environment Setup
+
+Create `.env` file:
+```bash
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+```
+
+## Run
+
+```bash
+uv run pdf_research_agent.py
+```
+
+**Examples:**
+
+- "Summarize this research paper: /path/to/paper.pdf"
+- "Analyze this document about climate change"
+- "Extract key insights from this PDF report"
+- "Process this academic paper on machine learning"
+
+## Example API Calls
+
+<AccordionGroup>
+  <Accordion title="Message Send Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "kind": "message",
+      "messageId": "9f11c870-5616-49ad-b187-d93cbb100001",
+      "contextId": "9f11c870-5616-49ad-b187-d93cbb100002",
+      "taskId": "9f11c870-5616-49ad-b187-d93cbb100003",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "Summarize this research paper: /path/to/paper.pdf"
+        }
+      ]
+    },
+     "skillId": "pdf-research-skill",
+    "configuration": {
+      "acceptedOutputModes": ["application/json"]
+    }
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100003"
+}
+```
+  </Accordion>
+  
+  <Accordion title="Task get Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tasks/get",
+  "params": {
+    "taskId": "9f11c870-5616-49ad-b187-d93cbb100003"
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100004"
+}
+```
+  </Accordion>
+</AccordionGroup>
+
+## Frontend Setup
+
+```bash
+# Clone the Bindu repository
+git clone https://github.com/GetBindu/Bindu
+
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start frontend development server
+npm run dev
+```
+
+Open http://localhost:5173 and try to chat with the PDF research agent

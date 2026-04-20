@@ -1,0 +1,286 @@
+---
+title: "2.10 Medical Research Agent"
+---
+
+A Bindu agent that provides medical information and health guidance using web search.
+
+## Code
+
+Create `medical_agent.py` with the code below, or save it directly from your editor.
+
+```python
+"""Medical Research Agent with Web Search
+
+A Bindu agent that provides medical information and health guidance using DuckDuckGo web search.
+Provides general health information, symptom analysis, and wellness recommendations.
+
+Features:
+- Web search via DuckDuckGo for real-time medical information
+- Medical research and symptom analysis capabilities
+- OpenRouter integration with google/gemini-2.0-flash-001
+- Clean, synthesized responses with medical disclaimers
+- Health and wellness guidance
+
+Usage:
+    python medical_agent.py
+
+Environment:
+    Requires OPENROUTER_API_KEY in .env file
+"""
+
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+from bindu.penguin.bindufy import bindufy
+from agno.agent import Agent
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.models.openrouter import OpenRouter
+
+
+# Initialize the medical research agent
+agent = Agent(
+    instructions="""You are a medical research assistant. When asked about health or medical topics, provide clear, accurate information with appropriate disclaimers. 
+
+Key guidelines:
+- Always include a medical disclaimer stating this is not professional medical advice
+- Provide general health information and educational content
+- For specific medical concerns, recommend consulting healthcare professionals
+- Use web search to find current, reliable medical information
+- Present information in an organized, easy-to-read format
+- Avoid making definitive diagnoses or treatment recommendations
+- Focus on evidence-based information from reputable sources
+
+Response format:
+- Start with relevant medical information
+- Include supporting details and context
+- End with a clear medical disclaimer
+- Avoid showing multiple search results - synthesize information coherently""",
+    model=OpenRouter(
+        id="google/gemini-2.0-flash-001",
+        api_key=os.getenv("OPENROUTER_API_KEY")
+    ),
+    tools=[DuckDuckGoTools()],
+    markdown=True
+)
+
+# Agent configuration for Bindu
+config = {
+    "author": "bindu.builder@getbindu.com",
+    "name": "medical_agent",
+    "description": "Medical research agent that provides health information, symptom analysis, and wellness guidance",
+    "deployment": {
+        "url": "http://localhost:3773",
+        "expose": True,
+        "cors_origins": ["http://localhost:5173"]
+    },
+    "skills": ["skills/medical-research-skill"],
+}
+
+# Message handler function
+def handler(messages: list[dict[str, str]]):
+    """
+    Process incoming messages and return agent response.
+
+    Args:
+        messages: List of message dictionaries containing conversation history
+
+    Returns:
+        Agent response with medical information and appropriate disclaimers
+    """
+    # Extract the latest user message
+    if messages:
+        latest_message = messages[-1].get('content', '') if isinstance(messages[-1], dict) else str(messages[-1])
+
+        # Run the agent with the latest message
+        result = agent.run(input=latest_message)
+
+        # Format the response to be cleaner
+        if hasattr(result, 'content'):
+            return result.content
+        elif hasattr(result, 'response'):
+            return result.response
+        else:
+            return str(result)
+
+    return "Please provide a health or medical question. Remember, I provide general information for educational purposes only."
+
+# Bindu-fy the agent - converts it to a discoverable, interoperable Bindu agent
+bindufy(config, handler)
+```
+
+## Skill Configuration
+
+Create `skills/medical-research-skill/skill.yaml`:
+
+```yaml
+id: medical-research-skill
+name: medical-research-skill
+version: 1.0.0
+author: bindu.builder@getbindu.com
+description: |
+  Advanced medical research skill that provides comprehensive health information,
+  symptom analysis, and wellness guidance for educational purposes.
+
+  Features:
+  - Real-time medical information via web search
+  - Symptom analysis and preliminary assessment
+  - Drug information and interaction details
+  - Health and wellness recommendations
+  - Medical research and study summaries
+  - Preventive care guidance
+  - Lifestyle and nutrition advice
+
+  Uses DuckDuckGo search to find current medical information
+  and provides detailed analysis with appropriate medical disclaimers.
+tags:
+  - medical
+  - health
+  - symptoms
+  - wellness
+  - research
+  - healthcare
+  - medicine
+input_modes:
+  - application/json
+output_modes:
+  - application/json
+examples:
+  - "What are the symptoms of flu?"
+  - "Provide information about ibuprofen side effects"
+  - "How to prevent common cold?"
+  - "What are the benefits of regular exercise?"
+  - "Explain the symptoms of diabetes"
+  - "Give tips for better sleep hygiene"
+capabilities_detail:
+  medical_research:
+    supported: true
+    description: "Comprehensive medical research and health information retrieval"
+  symptom_analysis:
+    supported: true
+    description: "Preliminary symptom analysis and assessment guidance"
+  drug_information:
+    supported: true
+    description: "Medication details, side effects, and interaction information"
+  wellness_guidance:
+    supported: true
+    description: "Health and wellness recommendations and lifestyle advice"
+  search_integration:
+    supported: true
+    description: "Real-time medical information search via DuckDuckGo"
+  preventive_care:
+    supported: true
+    description: "Preventive health measures and screening recommendations"
+```
+
+## How It Works
+
+**Medical Research**
+- Uses Google Gemini 2.0 Flash for fast, accurate medical information
+- DuckDuckGo web search for current medical research and health guidelines
+- Synthesizes information from multiple sources
+
+**Safety Features**
+- Always includes medical disclaimers
+- Never provides definitive diagnoses
+- Recommends professional consultation for specific concerns
+- Focuses on evidence-based information
+
+**Response Format**
+- Clear, organized medical information
+- Supporting details and context
+- Consistent medical disclaimer
+- Educational content only
+
+## Dependencies
+
+```bash
+uv init
+uv add bindu agno python-dotenv
+```
+
+## Environment Setup
+
+Create `.env` file:
+```bash
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+```
+
+## Run
+
+```bash
+uv run medical_agent.py
+```
+
+**Examples:**
+
+- "What are the symptoms of flu?"
+- "Provide information about ibuprofen side effects"
+- "How to prevent common cold?"
+- "What are the benefits of regular exercise?"
+
+## Example API Calls
+
+<AccordionGroup>
+  <Accordion title="Message Send Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "kind": "message",
+      "messageId": "9f11c870-5616-49ad-b187-d93cbb100001",
+      "contextId": "9f11c870-5616-49ad-b187-d93cbb100002",
+      "taskId": "9f11c870-5616-49ad-b187-d93cbb100003",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "What are the symptoms of flu?"
+        }
+      ]
+    },
+     "skillId": "medical-research-skill",
+    "configuration": {
+      "acceptedOutputModes": ["application/json"]
+    }
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100003"
+}
+```
+  </Accordion>
+  
+  <Accordion title="Task get Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tasks/get",
+  "params": {
+    "taskId": "9f11c870-5616-49ad-b187-d93cbb100003"
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100004"
+}
+```
+  </Accordion>
+</AccordionGroup>
+
+## Frontend Setup
+
+```bash
+# Clone the Bindu repository
+git clone https://github.com/GetBindu/Bindu
+
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start frontend development server
+npm run dev
+```
+
+Open http://localhost:5173 and try to chat with the medical research agent

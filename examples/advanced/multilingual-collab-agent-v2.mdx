@@ -1,0 +1,414 @@
+---
+title: "3.9 Multilingual Collaborative Agent v2"
+---
+
+An identity-aware agent that detects user language and responds in the same language with persistent memory.
+
+## Code
+
+Create `multilingual_collab_agent_v2.py` with the code below, or save it directly from your editor.
+
+```python
+     # |---------------------------------------------------------|
+# |                                                         |
+# |                 Give Feedback / Get Help                |
+# | https://github.com/getbindu/Bindu/issues/new/choose    |
+# |                                                         |
+# |---------------------------------------------------------|
+#
+#  Thank you users! We ❤️ you! - 🌻
+
+"""Multilingual Collaborative Agent v2 — A Bindu Agent.
+
+An identity-aware agent that detects user language (English, Hindi, Bengali)
+and responds in the same language. Supports research, translation, and
+collaborative workflows using Bindu DID identity and Mem0 persistent memory.
+"""
+
+import asyncio
+import json
+import os
+from pathlib import Path
+from textwrap import dedent
+from typing import Any
+
+from agno.agent import Agent
+from agno.models.openrouter import OpenRouter
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.mem0 import Mem0Tools
+from bindu.penguin.bindufy import bindufy
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Global agent instance — initialized lazily on first request
+agent: Agent | None = None
+_initialized = False
+_init_lock = asyncio.Lock()
+
+
+def load_config() -> dict:
+    """Load agent configuration from agent_config.json."""
+    config_path = Path(__file__).parent / "agent_config.json"
+    with open(config_path, "r") as f:
+        return json.load(f)
+
+
+def build_agent() -> Agent:
+    """Build and return the multilingual agent instance."""
+    openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+    mem0_api_key = os.getenv("MEM0_API_KEY")
+    model_name = os.getenv("MODEL_NAME", "openai/gpt-oss-120b")
+
+    if not openrouter_api_key:
+        raise ValueError("OPENROUTER_API_KEY environment variable is required.")
+    if not mem0_api_key:
+        raise ValueError(
+            "MEM0_API_KEY environment variable is required. "
+            "Get your key from: https://app.mem0.ai/dashboard/api-keys"
+        )
+
+    tools = [DuckDuckGoTools()]
+    try:
+        tools.append(Mem0Tools(api_key=mem0_api_key))
+    except Exception as e:
+        print(f"⚠️  Mem0 tools unavailable: {e}. Continuing without memory.")
+
+    return Agent(
+        name="multilingual-collab-agent-v2",
+        model=OpenRouter(
+            id=model_name,
+            api_key=openrouter_api_key,
+        ),
+        tools=tools,
+        instructions=dedent("""\
+            You are a multilingual research and collaboration agent built on the
+            Bindu framework — part of the Internet of Agents.
+
+            ## Language Detection and Response
+
+            ALWAYS detect the language of user's message and respond in that
+            same language. Follow these rules strictly:
+
+            - If the message is in **English** → respond entirely in English
+            - If the message is in **Hindi** (हिन्दी) → respond entirely in Hindi
+            - If the message is in **Bengali** (বাংলা) → respond entirely in Bengali
+            - If the message mixes languages → respond in the dominant language
+            - If unsure → default to English
+
+            Never switch languages mid-response. Never explain that you detected
+            a language — just respond naturally in that language.
+
+            ## Capabilities
+
+            ### Research
+            - Search the web using DuckDuckGo for current information
+            - Summarize findings clearly and concisely
+            - Cite sources when available
+            - Handle research queries in any supported language
+
+            ### Translation
+            - Translate text between English, Hindi, and Bengali
+            - Preserve the meaning, tone, and context of the original
+            - For technical terms with no direct translation, keep the
+              original term and provide a brief explanation
+
+            ### Collaboration
+            - Help users draft messages, emails, or documents in any language
+            - Assist with cross-language communication between users
+            - Provide cultural context when relevant
+
+            ### Memory
+            - Remember important facts from previous conversations using Mem0
+            - Reference past interactions when relevant
+            - Build a knowledge base about user's preferences and context
+
+            ## Identity
+
+            You are an identity-aware agent with a Bindu DID (Decentralized
+            Identifier). This means you can be discovered and called by other
+            agents in the Internet of Agents ecosystem.
+
+            ## Response Style
+
+            - Be concise and direct
+            - Use bullet points for lists and steps
+            - Format code in code blocks
+            - Match the formality level of the user's message
+            - For Hindi and Bengali responses, use proper script
+              (Devanagari for Hindi, Bengali script for Bengali)
+
+            ## Example Interactions
+
+            User (English): "What is the Bindu framework?"
+            → Respond in English with a clear explanation
+
+            User (Hindi): "बिंदू फ्रेमवर्क क्या है?"
+            → Respond entirely in Hindi: "बिंदू एक AI एजेंट फ्रेमवर्क है..."
+
+            User (Bengali): "বিন্দু ফ্রেমওয়ার্ক কী?"
+            → Respond entirely in Bengali: "বিন্দু হল একটি AI এজেন্ট ফ্রেমওয়ার্ক..."
+        """),
+        add_datetime_to_context=True,
+        markdown=True,
+    )
+
+
+async def handler(messages: list[dict[str, str]]) -> Any:
+    """Handle incoming messages — initializes agent lazily on first call.
+
+    Args:
+        messages: List of message dicts with 'role' and 'content' keys.
+
+    Returns:
+        Agent response string.
+    """
+    global agent, _initialized
+
+    async with _init_lock:
+        if not _initialized:
+            print("🔧 Initializing multilingual agent...")
+            agent = build_agent()
+            _initialized = True
+            print("✅ Agent initialized")
+
+    response = await agent.arun(messages)
+    return response
+
+
+def main() -> None:
+    """Start the Bindu agent server."""
+    config = load_config()
+    print("🌍 Starting Multilingual Collaborative Agent...")
+    print(f"   Supported languages: English, Hindi (हिन्दी), Bengali (বাংলা)")
+    print(f"   Model: {os.getenv('MODEL_NAME', 'openai/gpt-4o-mini')}")
+    print(f"   Memory: Mem0 persistent memory enabled")
+    bindufy(config, handler)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+## Configuration File
+
+Create `agent_config.json` in the same directory:
+
+```json
+{
+  "author": "your.email@example.com",
+  "name": "multilingual-collab-agent-v2",
+  "description": "Identity-aware multilingual agent with persistent memory and collaboration features",
+  "version": "2.0.0",
+  "deployment": {
+    "url": "http://localhost:3773",
+    "expose": true,
+    "cors_origins": ["http://localhost:5173"]
+  },
+  "skills": ["skills/multilingual-collaboration"],
+  "capabilities": {
+    "streaming": false,
+    "push_notifications": false,
+    "identity_aware": true,
+    "multilingual": true,
+    "memory": true
+  },
+  "storage": {
+    "type": "memory"
+  },
+  "scheduler": {
+    "type": "memory"
+  }
+}
+```
+
+## Skill Configuration
+
+Create `skills/multilingual-collaboration/skill.yaml`:
+
+```yaml
+id: multilingual-collaboration
+name: Multilingual Collaboration Skill
+version: 2.0.0
+author: your.email@example.com
+description: |
+  Advanced multilingual agent that detects user language and responds
+  in the same language with persistent memory and collaboration features.
+
+  Features:
+  - Automatic language detection (English, Hindi, Bengali)
+  - Native script support (Devanagari, Bengali)
+  - Cross-language translation capabilities
+  - Web search with DuckDuckGo integration
+  - Mem0 persistent memory for context retention
+  - Bindu DID identity for agent discovery
+  - Collaborative workflows and assistance
+
+  Supports research, translation, and cross-cultural communication
+  with proper language handling and cultural context awareness.
+tags:
+  - multilingual
+  - translation
+  - collaboration
+  - identity
+  - memory
+  - research
+  - hindi
+  - bengali
+  - english
+input_modes:
+  - application/json
+output_modes:
+  - application/json
+examples:
+  - "What is the Bindu framework?" (English)
+  - "बिंदू फ्रेमवर्क क्या है?" (Hindi)
+  - "বিন্দু ফ্রেমওয়ার্ক কী?" (Bengali)
+  - "Translate this document from English to Hindi"
+  - "Help me write an email in Bengali"
+capabilities_detail:
+  language_detection:
+    supported: true
+    description: "Automatically detects user language from message content"
+    languages: ["English", "Hindi", "Bengali"]
+  multilingual_response:
+    supported: true
+    description: "Responds in the same language as user input"
+    scripts: ["Latin", "Devanagari", "Bengali"]
+  translation:
+    supported: true
+    description: "Translates between English, Hindi, and Bengali"
+    features: ["context_preservation", "cultural_awareness"]
+  persistent_memory:
+    supported: true
+    description: "Mem0 integration for long-term context retention"
+  identity_awareness:
+    supported: true
+    description: "Bindu DID integration for agent discovery"
+  collaboration:
+    supported: true
+    description: "Assists with cross-language communication and drafting"
+```
+
+## How It Works
+
+**Language Detection**
+- Analyzes message content for language indicators
+- Supports English, Hindi (हिन्दी), and Bengali (বাংলা)
+- Responds entirely in detected language
+- Uses proper scripts for each language
+
+**Memory Integration**
+- Mem0 persistent memory for context retention
+- Remembers user preferences and past interactions
+- References relevant information from previous conversations
+- Builds knowledge base over time
+
+**Identity Features**
+- Bindu DID (Decentralized Identifier) support
+- Agent discovery in Internet of Agents ecosystem
+- Interoperability with other Bindu agents
+- A2A protocol compliance
+
+**Collaboration Capabilities**
+- Cross-language communication assistance
+- Document drafting in multiple languages
+- Cultural context awareness
+- Translation with meaning preservation
+
+## Dependencies
+
+```bash
+uv init
+uv add bindu agno python-dotenv mem0ai
+```
+
+## Environment Setup
+
+Create `.env` file:
+```bash
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+MEM0_API_KEY=your_mem0_api_key_here
+MODEL_NAME=openai/gpt-oss-120b
+```
+
+Get your Mem0 API key at [https://app.mem0.ai/dashboard/api-keys](https://app.mem0.ai/dashboard/api-keys)
+
+## Run
+
+```bash
+uv run multilingual_collab_agent_v2.py
+```
+
+**Examples:**
+
+- "What is the Bindu framework?" (English)
+- "बिंदू फ्रेमवर्क क्या है?" (Hindi)
+- "বিন্দু ফ্রেমওয়ার্ক কী?" (Bengali)
+- "Translate this document from English to Hindi"
+- "Help me write an email in Bengali"
+
+## Example API Calls
+
+<AccordionGroup>
+  <Accordion title="Message Send Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "kind": "message",
+      "messageId": "9f11c870-5616-49ad-b187-d93cbb100001",
+      "contextId": "9f11c870-5616-49ad-b187-d93cbb100002",
+      "taskId": "9f11c870-5616-49ad-b187-d93cbb100003",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "What is the Bindu framework?"
+        }
+      ]
+    },
+     "skillId": "multilingual-collaboration",
+    "configuration": {
+      "acceptedOutputModes": ["application/json"]
+    }
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100003"
+}
+```
+  </Accordion>
+  
+  <Accordion title="Task get Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tasks/get",
+  "params": {
+    "taskId": "9f11c870-5616-49ad-b187-d93cbb100003"
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100004"
+}
+```
+  </Accordion>
+</AccordionGroup>
+
+## Frontend Setup
+
+```bash
+# Clone the Bindu repository
+git clone https://github.com/GetBindu/Bindu
+
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start frontend development server
+npm run dev
+```
+
+Open http://localhost:5173 and try to chat with the multilingual collaborative agent

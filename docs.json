@@ -169,7 +169,9 @@
               "examples/beginner/notion-agent",
               "examples/beginner/ag2-agent",
               "examples/beginner/premium-research-assistant",
-              "examples/beginner/dspy-agent"
+              "examples/beginner/dspy-agent",
+              "examples/beginner/motivational-agent",
+              "examples/beginner/minimax-research-agent"
             ]
           },
           {
@@ -183,7 +185,9 @@
               "examples/specialized/document-analyzer",
               "examples/specialized/news-summarizer",
               "examples/specialized/speech-to-text-agent",
-              "examples/specialized/web-scraping-agent"
+              "examples/specialized/web-scraping-agent",
+              "examples/specialized/medical-research-agent",
+              "examples/specialized/pdf-research-agent"
             ]
           },
           {
@@ -195,7 +199,9 @@
               "examples/advanced/kotlin-openai-agent",
               "examples/advanced/langgraph-blog-writing-agent",
               "examples/advanced/typescript-langchain-agent",
-              "examples/advanced/typescript-openai-agent"
+              "examples/advanced/typescript-openai-agent",
+              "examples/advanced/quiz-generator-agent",
+              "examples/advanced/multilingual-collab-agent-v2"
             ]
           }
         ]
