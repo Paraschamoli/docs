@@ -1,27 +1,27 @@
 ---
 title: "v2026.8.5"
-description: "Code minimization, observability refactor, and Alembic async migration fix"
+description: "Less code, same agent"
 date: "2026-02-19"
 ---
 
-## Code Minimization and Observability Refactor
+## Trimming the fat
 
-This release removes ~590 lines of unused code from the observability, x402, and DID extension modules. The goal was to shrink the surface area — fewer code paths means fewer things to maintain, understand, and secure.
+More code means more bugs, more confusion, and more things to keep safe. This release deletes about **590 lines** of code that nothing was really using.
 
-Production functionality is 100% preserved. However, if you were importing Sentry wrapper functions from `bindu.observability` or x402 constants from `bindu/extensions/x402/constants.py`, those have moved or been removed.
+Your agent still does everything it did before. But if your code pulls specific things from `bindu.observability` or `bindu/extensions/x402/constants.py`, some imports need updating.
 
 ---
 
-## What You Need to Change
+## Heads up before you upgrade
 
 <Warning>
-**Sentry wrapper functions removed.** `capture_exception()`, `capture_message()`, `set_user()`, `set_context()`, `add_breadcrumb()`, and `start_transaction()` are no longer exported from `bindu.observability`. Use `sentry_sdk` directly instead:
+**Sentry helper functions are gone.** Bindu used to wrap [Sentry](https://sentry.io) (an error tracker) with its own shortcuts. We removed them — use the `sentry_sdk` library directly, it's the same thing with one less layer in between.
 
 ```python
-# Before
+# Old way
 from bindu.observability import capture_exception, set_user
 
-# After
+# New way
 import sentry_sdk
 sentry_sdk.capture_exception(error)
 sentry_sdk.set_user({"id": user_id})
@@ -29,13 +29,13 @@ sentry_sdk.set_user({"id": user_id})
 </Warning>
 
 <Warning>
-**x402 constants file deleted.** Constants moved to `bindu.settings.X402Settings`:
+**x402 constants moved.** If you were importing payment constants from the old file, grab them from settings instead:
 
 ```python
-# Before
+# Old way
 from bindu.extensions.x402.constants import X402_EXTENSION_URI
 
-# After
+# New way
 from bindu.settings import app_settings
 app_settings.x402.extension_uri
 ```
@@ -43,14 +43,20 @@ app_settings.x402.extension_uri
 
 ---
 
-## What's Improved
+## What got cleaner
 
-The observability module went from 8 exports to 2 (`setup` and `init_sentry`). The x402 extension dropped unused utility functions (`build_payment_required_metadata`, `build_payment_verified_metadata`, `merge_task_metadata`, `get_agent_extension`). DID extension helper methods were inlined for simpler code flow.
+The observability module used to export 8 things. Now it exports 2: `setup` and `init_sentry`. That's all you actually need.
 
-The Alembic migration runner now auto-converts `postgresql://` URLs to `postgresql+asyncpg://`, so both sync and async PostgreSQL URLs work without manual configuration:
+The x402 payment extension dropped four helper functions that no one was calling (`build_payment_required_metadata`, `build_payment_verified_metadata`, `merge_task_metadata`, `get_agent_extension`). The DID extension's tiny helper methods were moved inline — same behavior, one less hop to trace through.
+
+### Database migrations got friendlier
+
+Bindu uses [Alembic](https://alembic.sqlalchemy.org) to run database migrations. But Alembic and modern async Postgres don't always speak the same URL format — you used to have to remember whether it was `postgresql://` or `postgresql+asyncpg://`.
+
+Now both just work. The migration runner sees your URL and quietly converts it if needed:
 
 ```bash
-# Both formats now work
+# Both of these work — use whichever you already have
 DATABASE_URL=postgresql://user:password@host/db alembic upgrade head
 DATABASE_URL=postgresql+asyncpg://user:password@host/db alembic upgrade head
 ```
@@ -59,4 +65,6 @@ DATABASE_URL=postgresql+asyncpg://user:password@host/db alembic upgrade head
 
 ## Migration
 
-If you use `sentry_sdk` features through Bindu's wrappers, switch to importing `sentry_sdk` directly. If you reference x402 constants, switch to `app_settings.x402.*`. Everything else — OpenInference setup, Sentry initialization, DID extension behavior, and database migrations — works the same as before.
+- If you use `sentry_sdk` features through Bindu's wrappers, switch to importing `sentry_sdk` directly.
+- If you reference the old x402 constants, read them from `app_settings.x402.*` instead.
+- Everything else — OpenInference setup, Sentry init, DID behavior, database migrations — works the same as before.

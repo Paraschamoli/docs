@@ -1,91 +1,106 @@
 ---
 title: "v2026.6.6"
-description: "Hydra OAuth2 migration, legacy auth removal, and dependency standardization"
+description: "One login system, done properly"
 date: "2026-02-07"
 ---
 
-## Hydra OAuth2 Migration
+## One way to log in — Hydra
 
-This is a major release. Bindu now standardizes on Ory Hydra as the only authentication provider. Auth0, Cognito, and Kratos have been removed. If you were using any of those, you will need to migrate.
+Until now, Bindu supported three different ways to handle logins: Auth0, Cognito, and Kratos. Three systems means three sets of bugs, three sets of configs, three things to test.
 
-The release also pins all dependency versions for reproducible builds and introduces a hybrid OAuth2 + DID authentication model.
+Starting this release, Bindu uses only one: [Ory Hydra](https://www.ory.sh/hydra/). It's open source, it speaks OAuth2, and it plays nicely with your agent's DID.
 
----
-
-## What You Need to Change
-
-<Warning>
-**Auth0 and Cognito are gone.** Only Hydra is supported. Existing Auth0 or Cognito configurations must migrate to Hydra.
-</Warning>
-
-<Warning>
-**OAuth client authentication method changed.** Token requests now use `client_secret_post` instead of `client_secret_basic`. DIDs containing colons are properly supported as client IDs.
-</Warning>
-
-<Warning>
-**Removed modules.** `bindu/utils/auth_utils.py`, `bindu/server/middleware/auth/auth0.py`, `bindu/server/middleware/auth/cognito.py`, and all Kratos/Vault/user OAuth management modules have been deleted.
-</Warning>
+If you were using Auth0, Cognito, or Kratos — you'll need to move over. We'll walk you through it below.
 
 ---
 
-## What's New
+## Heads up before you upgrade
 
-### Hybrid OAuth2 + DID Authentication
+<Warning>
+**Auth0 and Cognito no longer work.** Only Hydra is supported now. Any old Auth0 or Cognito setup has to be switched.
+</Warning>
 
-Bindu now combines OAuth2 tokens with DID-based signatures. Your agent's DID serves as the stable key for credential storage, and the agent automatically registers itself as a Hydra client on startup using its DID as the `client_id`.
+<Warning>
+**How token requests are signed changed.** We now send the client secret in the request body (`client_secret_post`) instead of the header. This is needed because DIDs contain colons, and colons don't play well with the older style.
+</Warning>
 
-If the local credentials become stale, the SDK detects this, recreates the client in Hydra, and continues without manual intervention.
-
-### Pinned Dependency Versions
-
-All dependencies now use exact versions (`==`) instead of minimum versions (`>=`). This affects 34 packages across core runtime, telemetry, payments, storage, CLI, and security categories. Heavy or unused dependencies (`openai`, `agno`, `ddgs`, `numpy`) were removed.
-
-### Web UI Infrastructure
-
-A modular JavaScript architecture ships for the agent web interface, with separate files for the HTTP client, state management, chat functionality, and protocol handling.
+<Warning>
+**Some files are gone.** If your code imports from `bindu/utils/auth_utils.py`, `bindu/server/middleware/auth/auth0.py`, `bindu/server/middleware/auth/cognito.py`, or any Kratos/Vault/user-OAuth modules — those have been deleted.
+</Warning>
 
 ---
 
-## What's Improved
+## What's new
 
-The single-provider model simplifies authentication configuration significantly. Test complexity dropped (no more mocking three auth providers), and the config validator only needs to handle Hydra.
+### DID + OAuth2 working together
 
-At startup, the agent now displays the curl command for retrieving an OAuth token and the path to the client secret, making it easier to test authenticated endpoints.
+Here's the idea. Your agent has a **DID** (a decentralized ID that proves "I am who I say I am"). Hydra gives out **OAuth2 tokens** (short-lived keys for API access).
+
+We connect the two. Your DID becomes the `client_id` in Hydra. When your agent starts up, it introduces itself to Hydra using its DID and gets registered automatically.
+
+If the credentials on disk ever get out of sync with Hydra (say, your local file is deleted), Bindu notices, re-registers the agent, and carries on. No manual fix needed.
+
+### Dependencies locked to exact versions
+
+Every package Bindu depends on is now pinned to an exact version (`==`) instead of "this or newer" (`>=`). This means every build is the same build — no surprise updates in the middle of the night breaking your agent.
+
+34 packages were pinned across runtime, telemetry, payments, storage, CLI, and security. A few packages we weren't really using (`openai`, `agno`, `ddgs`, `numpy`) got removed entirely.
+
+### Web UI: cleaner building blocks
+
+The agent's web interface got split into focused JavaScript files — one for the HTTP client, one for state, one for chat, one for the protocol. Easier to read, easier to change.
+
+---
+
+## What got better
+
+With only one auth provider to worry about:
+
+- The auth config is far simpler
+- Tests don't have to mock three different systems
+- The config validator only has to check one thing
+
+When your agent starts up, it now prints the exact `curl` command to grab a fresh OAuth token, plus the path to your client secret. Testing an authenticated endpoint takes seconds.
 
 ---
 
 ## Migration
 
 <Steps>
-  <Step title="Set up Ory Hydra">
-    Use https://hydra.getbindu.com or deploy your own instance.
+  <Step title="Get a Hydra instance">
+    Use the hosted one at `https://hydra.getbindu.com`, or run your own.
   </Step>
-  <Step title="Update environment variables">
+  <Step title="Swap your environment variables">
+    Remove the old Auth0 ones:
+
     ```bash
-    # Remove
+    # Delete these
     AUTH0_DOMAIN=...
     AUTH0_AUDIENCE=...
     AUTH0_CLIENT_ID=...
     AUTH0_CLIENT_SECRET=...
+    ```
 
-    # Add
+    And add the new Hydra ones:
+
+    ```bash
     HYDRA__ADMIN_URL=https://hydra-admin.getbindu.com
     HYDRA__PUBLIC_URL=https://hydra.getbindu.com
     AUTH__ENABLED=true
     AUTH__PROVIDER=hydra
     ```
   </Step>
-  <Step title="Update agent config">
+  <Step title="Update your agent config">
     ```yaml
     auth:
       enabled: true
-      provider: hydra  # Only option now
+      provider: hydra  # this is the only option now
     ```
   </Step>
   <Step title="Start your agent">
-    The agent auto-registers in Hydra on startup using its DID as the client ID.
+    On first boot, your agent signs itself up in Hydra using its DID as the `client_id`. You don't have to do anything.
   </Step>
-  <Step title="Get a token">
+  <Step title="Grab a token to test it">
     ```bash
     curl 'https://hydra.getbindu.com/oauth2/token' \
       -d 'grant_type=client_credentials' \
@@ -95,4 +110,4 @@ At startup, the agent now displays the curl command for retrieving an OAuth toke
   </Step>
 </Steps>
 
-For Cognito deployments, there is no direct migration path — a full migration to Hydra is required.
+If you're on Cognito, there's no shortcut — you'll need to set up Hydra from scratch and point your agents there.

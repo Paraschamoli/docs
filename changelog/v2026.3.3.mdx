@@ -1,46 +1,55 @@
 ---
 title: "v2026.3.3"
-description: "PostgreSQL storage refactoring and DID-based multi-tenancy support"
+description: "Give each agent its own private room in the database"
 date: "2026-01-19"
 ---
 
-## PostgreSQL Storage Refactoring
+## One database, many agents, zero mess
 
-This release refactors the PostgreSQL storage layer to support DID-based multi-tenancy. If you run multiple agents against the same database, each agent can now get its own isolated schema — automatically, based on its DID.
+Imagine you have five agents sharing the same Postgres database. Without any separation, they all drop their data into the same tables. One agent's mess becomes every agent's problem.
 
-No public APIs changed. If you are on an earlier version, upgrading is seamless.
+This release fixes that. Each agent can now get its own private "room" inside the database, picked automatically from its DID.
+
+You don't have to change anything to upgrade. If you don't need the new feature, it stays out of your way.
 
 ---
 
-## What's New
+## What's new
 
-### DID-Based Multi-Tenancy
+### Private rooms for each agent
 
-PostgresStorage now accepts an optional `did` parameter. When you pass it, the storage layer creates a dedicated PostgreSQL schema for that agent and routes all queries there. Each agent's data stays isolated without needing separate databases.
+In Postgres, a "schema" is just a folder inside the database. We use that idea to give every agent its own folder.
+
+Pass a `did` when you create the storage, and Bindu creates a schema for that agent and sends all its queries there.
 
 ```python
 storage = PostgresStorage(did="did:example:123")
 await storage.connect()
 ```
 
-Under the hood, a SQLAlchemy event listener sets the `search_path` automatically on every connection. Schema creation and initialization happen on first use.
+That's the whole setup. Behind the scenes, we tell Postgres "when this agent talks to you, only look inside its folder." No cross-talk, no accidents, no extra databases.
 
-### Security Improvements
+### Safer SQL
 
-A new `sanitize_identifier()` function prevents SQL injection in schema names. Password masking in database URLs was also improved so logs never leak credentials. These utilities live in a new `helpers/security.py` module.
+Two small but important things:
 
----
+- We added a helper that cleans up schema names before using them in queries. This stops anyone from sneaking harmful SQL into a name.
+- Passwords in database URLs now get hidden before they ever reach your logs.
 
-## What's Improved
-
-The storage module was reorganized into a `helpers/` structure that separates validation, serialization, normalization, security, and common database operations into their own files. This reduced code duplication by about 11% (1099 → 989 lines) by consolidating repeated patterns — UUID validation, JSONB serialization, timestamp generation, and message normalization — into single helper functions.
-
-A new database migration (`20260119_0001_add_schema_support.py`) handles the schema infrastructure.
+Both live in a new `helpers/security.py` file.
 
 ---
 
-## Migration
+## What got cleaner
 
-No action required. All changes are backward compatible.
+The storage code was getting repetitive, so we moved the shared bits (UUID checks, JSON conversion, timestamps, message cleanup) into one place. The file shrank from 1,099 lines to 989 — same behavior, less to read.
 
-To enable multi-tenancy, pass a `did` when creating your storage instance. The schema will be created and configured automatically.
+A new migration (`20260119_0001_add_schema_support.py`) sets up the schema machinery for you.
+
+---
+
+## Do I need to do anything?
+
+No. Everything works the same as before.
+
+When you're ready to try multi-tenancy, just pass a `did` to your storage. Bindu takes care of the rest.

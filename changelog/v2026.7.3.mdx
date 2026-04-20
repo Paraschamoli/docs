@@ -1,33 +1,43 @@
 ---
 title: "v2026.7.3"
-description: "UI separation from core server and test infrastructure fixes"
+description: "Moving the UI out of the server"
 date: "2026-02-10"
 ---
 
-## UI Separation and Test Fixes
+## Keeping the server focused
 
-Maintenance release. The built-in documentation UI has been moved to a separate frontend application, and the `/docs` and `/favicon.ico` endpoints have been removed from the core server. This cleans up the boundary between the backend API and the presentation layer.
+Until now, your Bindu agent served both the API *and* a small docs UI from the same process. That worked fine, but it mixed two very different jobs into one place.
+
+This release splits them. The docs UI now lives in its own frontend app. Your agent server goes back to doing one thing well — speaking the agent API.
 
 ---
 
-## What You Need to Change
+## What you need to know
 
 <Warning>
-**Built-in UI endpoints removed.** The `/docs` endpoint no longer exists. If you were using it, switch to the separate frontend application (typically at `http://localhost:5173`).
+**The `/docs` page is gone from the agent.** If you were opening `http://localhost:3773/docs`, that no longer works. The UI now runs as a separate app (usually at `http://localhost:5173`).
 </Warning>
 
-All API endpoints remain unchanged — `POST /` for A2A protocol, `GET /health`, `GET /metrics`, `GET /.well-known/agent.json`, and `GET /agent/skills` all work exactly as before.
+The actual agent API didn't change at all. Everything below still works exactly the same:
+
+- `POST /` — the main A2A protocol endpoint
+- `GET /health` — is the agent alive?
+- `GET /metrics` — Prometheus stats
+- `GET /.well-known/agent.json` — agent identity card
+- `GET /agent/skills` — list of what the agent can do
 
 ---
 
-## What's Improved
+## What got better
 
-Test infrastructure was cleaned up alongside the UI removal. Thirty previously failing tests in `test_applications.py` were fixed, deprecated endpoint tests were removed, and the route structure assertions were updated to reflect the new, leaner set of core routes.
+While we were in there, we cleaned up the tests. Thirty tests in `test_applications.py` that were quietly failing now pass. Tests for the old `/docs` endpoint were deleted (it doesn't exist anymore), and the route checks were updated to match the leaner server.
 
-Example files were standardized with consistent `launch=True` patterns and tunnel launch comments. A new `echo_agent_behind_paywall.py` example demonstrates x402 payment integration. Documentation credentials were sanitized with `pragma: allowlist secret` comments to prevent false positives from the detect-secrets pre-commit hook.
+The example agents were tidied up too. They all now use a consistent `launch=True` pattern with comments explaining how to launch with a tunnel. A new example — `echo_agent_behind_paywall.py` — shows how to charge money for agent responses using x402 payments.
+
+Small housekeeping thing: fake credentials in the docs are marked with `# pragma: allowlist secret` so the secret scanner stops flagging them as real leaks.
 
 ---
 
 ## Migration
 
-If you were accessing the built-in UI at `http://localhost:3773/docs`, that path is gone. Use the separate frontend application instead. All agent API endpoints remain at their existing paths.
+If your workflow used `http://localhost:3773/docs`, switch to the separate frontend app. Everything else stays exactly where it was.

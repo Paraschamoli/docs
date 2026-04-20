@@ -1,42 +1,46 @@
 ---
 title: "v2026.9.4"
-description: "HashiCorp Vault integration for persistent DID keys and OAuth credentials"
+description: "Your agent keeps its identity, even after a restart"
 date: "2026-02-25"
 ---
 
-## Vault Integration for Persistent Agent Identity
+## Restart your agent without losing who it is
 
-This release solves a critical production problem: when a Kubernetes pod restarts, the agent used to get a brand new DID identity and register a fresh Hydra OAuth client. That broke authentication for any client that had cached the old credentials. Orphaned clients piled up in Hydra.
+Picture this. Your agent is running in Kubernetes. A pod crashes and restarts. The new pod comes up — but with a brand new DID and fresh OAuth credentials.
 
-With this release, agents can store their DID keys and Hydra credentials in HashiCorp Vault. Pod restarts restore the same identity, same credentials, same DID. From the outside, nothing changed.
+Any app that remembered the old credentials? Broken. And Hydra slowly fills up with orphaned clients that no one is using.
+
+This release fixes that. Your agent can now save its identity (DID keys + Hydra credentials) in [HashiCorp Vault](https://www.vaultproject.io) — a safe place for secrets. When it restarts, it picks up the same identity and keeps going. From the outside, nothing changed.
 
 ---
 
-## What You Need to Change
+## One thing to know first
 
 <Warning>
-**DID key regeneration is now off by default.** The `recreate_keys` setting changed from `True` to `False`. This means existing keys are preserved on restart instead of being regenerated. If you explicitly need fresh keys every time, set `recreate_keys=True`.
+**DID keys don't regenerate on every restart anymore.** The `recreate_keys` setting now defaults to `False`, which means your agent keeps its existing keys. This is almost always what you want. If you actually need fresh keys each time, set `recreate_keys=True`.
 </Warning>
 
 ---
 
-## What's New
+## What's new
 
-### Vault-Backed Identity Persistence
+### Agent identity that survives restarts
 
-A new `VaultClient` module stores and retrieves DID keys and Hydra OAuth credentials. The lookup follows a priority chain:
+A new `VaultClient` stores and fetches your agent's DID keys and Hydra credentials in Vault. When your agent starts up, it follows a simple priority order:
 
-1. Check Vault for existing credentials
-2. Fall back to the local filesystem
-3. Generate new credentials as a last resort
+1. **Check Vault first.** If credentials are there, use them.
+2. **Fall back to the local filesystem.** Maybe Vault is offline — that's fine.
+3. **Last resort: generate new ones.** And then immediately save them to Vault so the next restart finds them.
 
-New credentials are automatically backed up to Vault, so the next restart finds them there. The client reuses the existing `AsyncHTTPClient` (no duplicate HTTP sessions) and properly cleans up async sessions to prevent memory leaks.
+It reuses the HTTP client Bindu already uses (no extra connections) and cleans up properly when it's done (no memory leaks).
 
-### Deterministic Agent IDs
+### Agent IDs that are predictable
 
-Agent IDs are now generated deterministically from `SHA256(author:agent_name)`. The same author and name always produce the same agent ID, which produces the same DID. No need to hardcode IDs in your config — the identity is derived from what you already specify.
+Your agent ID is now generated from `SHA256(author:agent_name)`. That sounds fancy, but the idea is simple: same author + same agent name = same ID, every time, forever.
 
-### Vault Storage Layout
+This means you don't have to hardcode an ID anywhere. Bindu figures it out from details you've already provided.
+
+### What ends up in Vault
 
 ```
 vault/secret/bindu/
@@ -52,7 +56,11 @@ vault/secret/bindu/
     └── scopes
 ```
 
-### Configuration
+Two folders: one for the DID identity (who the agent is), one for the Hydra login (how it proves it).
+
+### How to turn it on
+
+Set three environment variables:
 
 ```bash
 VAULT__ENABLED=true
@@ -60,9 +68,9 @@ VAULT__URL=http://vault:8200
 VAULT__TOKEN=hvs.CAESIJ...
 ```
 
-The standard `VAULT_ADDR` and `VAULT_TOKEN` environment variable names also work.
+The standard `VAULT_ADDR` and `VAULT_TOKEN` names work too, if you've already got those set up.
 
-For Kubernetes:
+On Kubernetes, pull the token from a Secret:
 
 ```yaml
 env:
@@ -79,37 +87,37 @@ env:
 
 ---
 
-## What's Improved
+## What got better
 
-The startup flow now checks Vault before generating anything. If Vault has the keys, they are restored to the local filesystem and the agent continues with its original identity. If Vault is unavailable, the agent falls back gracefully to local files or fresh generation.
+The startup flow is now: check Vault → check local files → generate new. If Vault is down, the agent doesn't crash — it just uses local files or makes fresh keys, like before.
 
-Type safety improved across the codebase — agent IDs are now properly handled as UUIDs internally and strings for display. Unused dependencies (`agno`, `openai`, `ddgs`) were removed from `pyproject.toml`.
+Inside the code, agent IDs are handled as proper UUIDs where the type matters, and as strings where humans will read them. A few unused dependencies (`agno`, `openai`, `ddgs`) got removed from `pyproject.toml`.
 
 ---
 
 ## Migration
 
 <Steps>
-  <Step title="Enable Vault">
+  <Step title="Turn Vault on">
     ```bash
     VAULT__ENABLED=true
     VAULT__URL=http://vault:8200
     VAULT__TOKEN=hvs.CAESIJ...
     ```
   </Step>
-  <Step title="Restart your agents">
-    Existing keys are automatically backed up to Vault on first startup.
+  <Step title="Restart your agent">
+    The first time it starts up with Vault enabled, your existing keys get backed up automatically.
   </Step>
-  <Step title="Verify">
+  <Step title="Peek inside Vault to confirm">
     ```bash
     vault kv get secret/bindu/agents/{agent_id}/did-keys
     ```
   </Step>
-  <Step title="Test pod restarts">
-    Delete a pod and verify the agent comes back with the same DID.
+  <Step title="Test a pod restart">
+    Delete a pod and watch the replacement come up with the same DID. That's the whole point.
   </Step>
 </Steps>
 
 <Warning>
-In production, use Kubernetes auth instead of static Vault tokens. Rotate tokens regularly, enable audit logging, and always use TLS for Vault communication.
+**For production:** don't rely on a hardcoded Vault token. Use Kubernetes auth (Vault can accept a pod's service account as proof of identity). Rotate tokens often, turn on audit logging, and always talk to Vault over TLS.
 </Warning>

@@ -52,7 +52,7 @@ sequenceDiagram
     participant Webhook as Webhook Receiver
 
     Note over Client,Handlers: 1. Registration
-    Client->>Handlers: POST /messages/send or tasks/pushNotification/set
+    Client->>Handlers: message/send or tasks/pushNotificationConfig/set
     Handlers->>Push: Register webhook
     Push->>Storage: Persist if long_running=true
 
@@ -71,8 +71,8 @@ sequenceDiagram
     later through a dedicated RPC method.
 
     The two supported registration paths are:
-    - Inline during `messages/send`
-    - Separate RPC registration through `tasks/pushNotification/set`
+    - Inline during `message/send`
+    - Separate RPC registration through `tasks/pushNotificationConfig/set`
 
     If `long_running=true`, the webhook configuration is persisted so it survives
     restarts.
@@ -123,10 +123,10 @@ manifest = AgentManifest(
 import requests
 from uuid import uuid4
 
-response = requests.post("http://localhost:3773/messages/send", json={
+response = requests.post("http://localhost:3773/", json={
     "jsonrpc": "2.0",
     "id": "req-1",
-    "method": "messages/send",
+    "method": "message/send",
     "params": {
         "message": {
             "message_id": str(uuid4()),
@@ -247,7 +247,7 @@ Sent when artifacts are generated.
 
 <CardGroup cols={2}>
   <Card title="Inline Registration" icon="code">
-    Recommended. Register the webhook during `messages/send` so it is ready before the
+    Recommended. Register the webhook during `message/send` so it is ready before the
     task starts.
   </Card>
   <Card title="Separate RPC Registration" icon="link">
@@ -285,7 +285,7 @@ Sent when artifacts are generated.
     ```json
     {
       "jsonrpc": "2.0",
-      "method": "tasks/pushNotification/set",
+      "method": "tasks/pushNotificationConfig/set",
       "params": {
         "id": "task-123",
         "long_running": true,
@@ -313,7 +313,7 @@ When `long_running=true`, the webhook config is saved to the database and reload
 
 ```python
 # Before restart
-POST /messages/send (long_running=true)
+POST / (method: "message/send", long_running=true)
 # -> Task created: task-123
 # -> Webhook persisted to database
 # -> Server restarts
@@ -347,10 +347,10 @@ Priority order:
 ### RPC Methods
 
 <CodeGroup>
-  ```json tasks/pushNotification/set
+  ```json tasks/pushNotificationConfig/set
   {
     "jsonrpc": "2.0",
-    "method": "tasks/pushNotification/set",
+    "method": "tasks/pushNotificationConfig/set",
     "params": {
       "id": "task-123",
       "long_running": true,
@@ -363,10 +363,10 @@ Priority order:
   }
   ```
 
-  ```json tasks/pushNotification/get
+  ```json tasks/pushNotificationConfig/get
   {
     "jsonrpc": "2.0",
-    "method": "tasks/pushNotification/get",
+    "method": "tasks/pushNotificationConfig/get",
     "params": {
       "task_id": "task-123"
     }
@@ -454,7 +454,7 @@ redis.setex(f"event:{event['event_id']}", 600, "1")
     Query the registered webhook config:
 
     ```json
-    { "method": "tasks/pushNotification/get", "params": {"task_id": "task-123"} }
+    { "method": "tasks/pushNotificationConfig/get", "params": {"task_id": "task-123"} }
     ```
 
     Test the webhook endpoint directly:

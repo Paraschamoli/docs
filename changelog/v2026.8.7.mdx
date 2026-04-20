@@ -1,53 +1,63 @@
 ---
 title: "v2026.8.7"
-description: "Bug fixes, dependency updates, new example agents, and community contributions"
+description: "Bug fixes, updated packages, and three new example agents"
 date: "2026-02-21"
 ---
 
-## Bug Fixes and Community Contributions
+## Small fixes, fresh examples
 
-Stability release with fixes for schema management, type checking, and dependency compatibility. Also adds three new example agents contributed by the community. No breaking changes.
-
----
-
-## What's Fixed
-
-**Schema management** — Schema name truncation now correctly caps at 63 characters (PostgreSQL's limit). Previously, long DID-based schema names could exceed this.
-
-**Type checking** — Fixed a type checker error for `sys.stdout.reconfigure` and resolved type checking issues across several modules.
-
-**Task manager** — Stabilized `task_manager.py` with improved error handling and edge case coverage.
-
-**Dependencies** — Updated pydantic (2.11.3 → 2.12.5), requests (2.32.3 → 2.32.5), sqlalchemy (2.0.44 → 2.0.46), tenacity (8.5.0 → 9.1.4), and rich (13.9.4 → 14.3.2). The pydantic update resolves a fastmcp compatibility issue; the requests update resolves a langchain-community compatibility issue.
+A quiet release with no breaking changes. Some old bugs got squashed, a few key packages were updated, and the community contributed three new example agents to learn from.
 
 ---
 
-## What's New
+## Bugs that got fixed
 
-### Example Agents
+**Schema names no longer get too long.** Postgres only allows schema names up to 63 characters. Long DIDs were sometimes bumping into that limit, causing weird failures. Now we trim the name to fit, cleanly.
 
-Three new examples contributed by the community:
+**Type-checker quiet again.** A couple of spots were tripping up the type checker — notably `sys.stdout.reconfigure`. All fixed.
 
-- **Paywall Agent** — Demonstrates x402 payment integration, showing how to monetize agent responses
-- **News Summarizer** — Uses local Ollama and DuckDuckGo for privacy-friendly news aggregation
-- **Cybersecurity Newsletter** — Security-focused agent for hardening best practices
+**`task_manager.py` is steadier.** Better error handling and a few more edge cases are covered. Less likely to crash on unusual input.
 
-### Validation
+**Packages updated.** These are internal libraries Bindu depends on:
 
-The `author` field is now validated early in the configuration pipeline. Missing it produces a clear error at startup instead of a confusing failure later.
+| Package | Old | New |
+|---|---|---|
+| pydantic | 2.11.3 | 2.12.5 |
+| requests | 2.32.3 | 2.32.5 |
+| sqlalchemy | 2.0.44 | 2.0.46 |
+| tenacity | 8.5.0 | 9.1.4 |
+| rich | 13.9.4 | 14.3.2 |
 
-### Observability
+The pydantic bump fixes a clash with `fastmcp`. The requests bump fixes a clash with `langchain-community`. Nothing you'll notice in day-to-day use — just healthier internals.
 
-`NotificationService` now tracks lightweight in-memory delivery metrics, and the health endpoint has improved observability.
+---
+
+## What's new
+
+### Three example agents from the community
+
+If you're learning Bindu, examples are the fastest way in. Three new ones shipped:
+
+- **Paywall Agent** — shows how to charge money for responses using x402 payments. A great intro to monetizing an agent.
+- **News Summarizer** — runs on local [Ollama](https://ollama.com) and uses DuckDuckGo to pull news. No cloud APIs, no sending data out.
+- **Cybersecurity Newsletter** — an agent that writes security hardening tips.
+
+### Clearer error when you forget `author`
+
+Every agent config needs an `author` field. If you left it out, Bindu used to fail deep inside the startup process with a confusing error. Now it checks up front and tells you exactly what's missing.
+
+### Light-touch notification metrics
+
+`NotificationService` now keeps a small counter in memory of how many notifications it has delivered. The `/health` endpoint shows a bit more about what's going on too.
 
 ---
 
 ## Migration
 
-If upgrading from a version with exact dependency pins, run `uv sync` to pick up the updated packages. Make sure your agent config includes the required `author` field.
+If you pin your dependencies exactly (as this project does), run `uv sync` to pick up the updates. Then check your agent config has an `author` field.
 
 ---
 
-## Contributors
+## Thanks
 
-Thanks to rautsoham03, ssjgit08, Krushna, AseemPrasad, Sharda2004196, and Krushna56 for their contributions to this release.
+A big thank you to the folks who contributed to this release: **rautsoham03, ssjgit08, Krushna, AseemPrasad, Sharda2004196,** and **Krushna56**.

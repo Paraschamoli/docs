@@ -1,70 +1,86 @@
 ---
 title: "v2026.12.5"
-description: "Document analysis, payment robustness, scheduler and storage reliability, and usability improvements"
+description: "A new document-reading agent, many-currency payments, and a pile of reliability fixes"
 date: "2026-03-19"
 ---
 
-## Document Analyzer and Reliability Improvements
+## A big release with a lot of small wins
 
-This is a broad release touching several systems. The headline features are a new document analyzer agent, multi-currency payment support, and fixes to scheduler deadlocks and storage memory pressure. The auth middleware was rewritten as pure ASGI, the UI got accessibility improvements, and 44 new tests were added.
+This one touches a lot of the system. The headline changes:
+
+- A new agent that can read PDFs and Word docs
+- Payments that handle multiple currencies at once
+- A handful of reliability fixes in the scheduler and storage
+- The auth middleware got a rewrite for better performance
+- The UI got kinder to screen readers
+- 44 new tests so we break less in the future
 
 ---
 
-## What You Need to Change
+## Before you upgrade
 
 <Warning>
-**Stricter configuration validation.** Deployments missing `deployment.url` or nested required fields will now fail fast on startup instead of failing silently later. Make sure your `agent_config.json` includes all required deployment fields.
+**Config validation got stricter.** If your `agent_config.json` is missing `deployment.url` or another required field, the agent now fails immediately on startup instead of crashing later. This is better — you find out right away. Just make sure your config is complete.
 </Warning>
 
 <Warning>
-**Constants reorganized.** If you import constants from deeply nested paths in the extensions modules, check that your imports still resolve. Key settings moved to dedicated constants modules.
+**Some constants moved.** If your code imports constants from deep paths inside the extension modules, check that the imports still resolve. A few settings were moved into dedicated constants modules.
 </Warning>
 
 ---
 
-## What's New
+## What's new
 
-### Document Analyzer Agent
+### An agent that reads documents
 
-A new document analyzer agent with skills wiring and workflow examples for processing PDF and DOCX files. The frontend restricts uploads to allowed mimetypes and ensures `FilePart.text` is preserved through the pipeline so downstream handlers can operate on the extracted content.
+There's a new built-in agent that understands PDFs and DOCX files. Give it a document and it can work with the content inside.
 
-### Multi-Currency Payments
+On the upload side, the frontend only lets through allowed file types, and `FilePart.text` (the extracted text from the document) is carried through the whole pipeline so later steps can actually use it.
 
-The payment system now supports multiple currencies and multi-asset requirements in a single configuration. Payment context validation was tightened to prevent duplicate injection and partial state corruption. The A2A `message/send` endpoint no longer returns 500 errors when payment states are malformed.
+### Payments in more than one currency
 
-### DSPy and LangGraph Examples
+Until now, a payment setup could only describe one currency. Now a single config can require multiple currencies and multiple asset types. A freelancer agent could ask for USDC on one chain, ETH on another, stable coins somewhere else — all defined in one place.
 
-A new DSPy agent example demonstrates question-answering behavior with comprehensive unit tests. A LangGraph structured workflow example shows advanced orchestration patterns within Bindu.
+The payment validation is also stricter. Duplicate payment info can't sneak in, and half-broken payment states don't crash the whole endpoint. The A2A `message/send` endpoint no longer returns a generic 500 when something is off — you get a clear error instead.
 
-### UI and Accessibility
+### Two new example agents
 
-A collapsible Agent Inspector with clearer empty states improves the first-agent experience. Skip-to-content links and ARIA landmarks improve screen reader navigation. Visual flicker when switching between previous chats has been eliminated.
+- **DSPy agent** — a question-answering agent built with [DSPy](https://dspy.ai), with tests you can learn from.
+- **LangGraph agent** — shows how to wire up a structured, multi-step workflow inside Bindu using [LangGraph](https://langchain-ai.github.io/langgraph/).
 
----
+### A friendlier UI
 
-## What's Fixed
-
-**Scheduler** — Resolved AnyIO buffer deadlocks, CPU burn loops in edge cases, and trace serialization failures with large payloads.
-
-**Storage** — Hardened the in-memory subsystem to reduce OOM risks and optimized database indexing.
-
-**Auth middleware** — Migrated the Hydra middleware from synchronous to pure ASGI. This improves concurrency, adds WebSocket support, and properly manages connection lifecycle to prevent resource leaks.
-
-**Configuration** — Added fail-fast validation for `deployment.url` with much clearer error messages for missing nested required fields.
+- The Agent Inspector is now collapsible, with clearer messages when there's nothing to show. Much better for first-time users.
+- "Skip to content" links and ARIA landmarks were added, so screen readers can navigate the UI properly.
+- That annoying flicker when you switched between chats? Gone.
 
 ---
 
-## What's Improved
+## What got fixed
 
-### Test Coverage
+**Scheduler.** Fixed three separate issues: a deadlock that could happen under load (AnyIO buffer contention), a CPU-eating loop in rare edge cases, and trace serialization failing when traces got very large.
 
-44 new tests were added across critical components:
+**Storage.** Made the in-memory subsystem less likely to run out of memory. Database indexing is faster too.
 
-- **ManifestWorker** (+15 tests) — Task execution flows, payment context integration, error handling, system message injection. Coverage: 58% → 83%.
-- **BinduApplication** (+20 tests) — Configuration validation, custom setup, debug mode, CORS, authentication. Coverage: 16% → 30%.
-- **TaskManager** (+9 tests) — Context manager, storage/scheduler attributes, push manager initialization. Coverage: 67% → 75%.
+**Auth middleware.** Rewrote the Hydra middleware from synchronous code to pure ASGI. This sounds technical, but the practical effect is real: better concurrency, WebSocket support, and proper cleanup of connections so nothing leaks.
 
-Overall coverage improved from 58.59% to 60.11% with 688 tests passing.
+**Configuration.** Now fails fast if `deployment.url` is missing, and the error messages for nested missing fields are much clearer.
+
+---
+
+## What got better behind the scenes
+
+### More tests, fewer surprises
+
+We added 44 new tests, focused on the pieces that matter most:
+
+| Area | Tests added | Coverage before → after |
+|---|---|---|
+| ManifestWorker | +15 | 58% → 83% |
+| BinduApplication | +20 | 16% → 30% |
+| TaskManager | +9 | 67% → 75% |
+
+Overall test coverage went from **58.59% to 60.11%** with **688 tests** passing.
 
 ---
 
@@ -72,18 +88,18 @@ Overall coverage improved from 58.59% to 60.11% with 688 tests passing.
 
 <Steps>
   <Step title="Check your config">
-    Ensure `deployment.url` is properly set. The validator is now strict about this.
+    Make sure `deployment.url` is set. The validator now insists on it.
   </Step>
-  <Step title="Update payment configs">
-    If you use custom payment configurations, verify they map correctly to the new multi-currency validation rules.
+  <Step title="Update your payment configs">
+    If you have custom payment setups, double-check they follow the new multi-currency rules.
   </Step>
-  <Step title="Rebase custom extensions">
-    If you maintain forks of the scheduler, storage, or Hydra auth modules, rebase onto this release to pick up the deadlock and ASGI safety fixes.
+  <Step title="Rebase any forks">
+    If you've forked the scheduler, storage, or Hydra auth modules, pull this release in so you get the deadlock and ASGI fixes.
   </Step>
 </Steps>
 
 ---
 
-## Contributors
+## Thanks
 
-Thanks to Paraschamoli, chandan-1427, varshayadav6, codesoumya2006, Prateekiiitg56, Co-vengers, nexpectArpit, AseemPrasad, shrguhaneogi-pixel, udaykiran243, arnab2001, Suvam-paul145, Subhajitdas99, DeviPadmavathi-LE, PardhaviArimilli, A-VISHAL, amr1tanshu, and underratedgitter.
+Huge thanks to everyone who made this release happen: **Paraschamoli, chandan-1427, varshayadav6, codesoumya2006, Prateekiiitg56, Co-vengers, nexpectArpit, AseemPrasad, shrguhaneogi-pixel, udaykiran243, arnab2001, Suvam-paul145, Subhajitdas99, DeviPadmavathi-LE, PardhaviArimilli, A-VISHAL, amr1tanshu,** and **underratedgitter.**

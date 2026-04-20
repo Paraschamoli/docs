@@ -1,41 +1,52 @@
 ---
 title: "v2026.3.5"
-description: "Prometheus metrics endpoint and monitoring infrastructure"
+description: "See how your agent is doing, live"
 date: "2026-01-22"
 ---
 
-## Prometheus Metrics and Monitoring
+## A window into your running agent
 
-This release adds a `/metrics` endpoint that speaks Prometheus text format. If you run your agents in production, you can now scrape them with Prometheus and build Grafana dashboards without any extra dependencies — the implementation is pure Python.
+Your agent is up. But how do you know it's healthy? How many requests is it handling? Is it getting slower? Are errors piling up?
 
-No breaking changes. The endpoint is available immediately after upgrading.
+This release adds a simple answer: a `/metrics` page. Visit it, and your agent tells you exactly how it's doing — in a format that Prometheus (a popular monitoring tool) understands.
+
+You don't need to install anything extra. It's built in.
 
 ---
 
-## What's New
+## What's new
 
-### The `/metrics` Endpoint
+### The `/metrics` page
 
-Every Bindu agent now exposes a Prometheus-compatible metrics endpoint. A middleware layer automatically tracks HTTP requests, and the endpoint aggregates everything in a thread-safe collector.
+Every Bindu agent now has a live stats page. A small piece of code sits in front of every request, quietly counting things. The `/metrics` endpoint then hands all those numbers over whenever you ask.
 
-Here is what gets tracked:
+Here's what gets counted:
 
-| Type | Metrics |
-|------|---------|
-| Counters | `http_requests_total` (by method, endpoint, status), `agent_tasks_completed_total`, `agent_errors_total` |
-| Histograms | `http_request_duration_seconds` (0.1s, 0.5s, 1.0s, +Inf), `task_duration_seconds` (1s, 5s, 10s, 30s, 60s, +Inf) |
-| Gauges | `agent_tasks_active` (per agent), `http_requests_in_flight` |
-| Summaries | `http_request_size_bytes`, `http_response_size_bytes` |
+| Type | What it tells you |
+|------|-------------------|
+| Counters | Total HTTP requests (split by method, endpoint, and status), completed tasks, and errors |
+| Histograms | How long requests and tasks take (bucketed: 0.1s, 0.5s, 1s, 5s, 10s, 30s, 60s) |
+| Gauges | How many tasks are running right now, how many requests are in flight |
+| Summaries | Size of incoming requests and outgoing responses |
 
-### Quick Start
+Don't worry if these terms feel fuzzy — Prometheus uses four shapes:
 
-Scrape your agent:
+- **Counters** only go up (e.g. total requests ever).
+- **Histograms** bucket values (e.g. how many requests took under 1 second).
+- **Gauges** go up and down (e.g. active tasks right now).
+- **Summaries** track sizes or averages over time.
+
+### Try it in one line
 
 ```bash
 curl http://localhost:3773/metrics
 ```
 
-Point Prometheus at it:
+You'll see a wall of numbers. That's the raw data Prometheus reads.
+
+### Point Prometheus at your agent
+
+In your `prometheus.yml`:
 
 ```yaml
 scrape_configs:
@@ -45,16 +56,20 @@ scrape_configs:
     metrics_path: '/metrics'
 ```
 
-### Useful PromQL Queries
+Now Prometheus checks on your agent every few seconds.
+
+### Useful questions, in PromQL
+
+Once Prometheus has the data, you can ask it things:
 
 ```promql
-# Request rate
+# How many requests per second, averaged over 5 minutes?
 rate(http_requests_total[5m])
 
-# 95th percentile latency
+# What's the 95th percentile latency? (95% of requests are faster than this)
 histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
 
-# Error rate
+# How fast are errors happening?
 rate(agent_errors_total[5m])
 
 # Average task duration
@@ -63,12 +78,12 @@ rate(task_duration_seconds_sum[5m]) / rate(task_duration_seconds_count[5m])
 
 ---
 
-## What's Improved
+## How it fits together
 
-The middleware is positioned last in the stack so it captures the complete request lifecycle, including response sizes and in-flight counts. The metrics module has no circular dependencies and a clean three-file structure: core collection, HTTP middleware, and the Prometheus endpoint.
+The metrics middleware is placed last in the request pipeline on purpose. That way it sees the complete picture — the full response, its size, everything. The code lives in three small files: one for collecting numbers, one for the middleware, one for the endpoint. Clean and easy to follow.
 
 ---
 
-## Migration
+## Do I need to do anything?
 
-No action required. Metrics are automatically enabled. Access them at `/metrics` and optionally configure Prometheus to scrape your agent.
+No. Metrics are on the moment you upgrade. Visit `/metrics` to see them. Hook up Prometheus whenever you're ready.

@@ -1,0 +1,359 @@
+---
+title: 'API Introduction'
+description: 'Complete HTTP API reference for Bindu agents'
+---
+
+## Overview
+
+Every Bindu agent exposes a standard HTTP API that follows the A2A (Agent-to-Agent) protocol. This API is automatically generated when you call `bindufy()` — you never write route handlers manually.
+
+The API is **generic** and works identically across all agents, regardless of their specific capabilities. Domain-specific behavior is handled by your agent's handler function, not by custom endpoints.
+
+---
+
+## Base URL
+
+<CodeGroup>
+```bash Local Development
+http://localhost:3773
+```
+
+```bash Production
+https://your-agent.getbindu.com
+```
+</CodeGroup>
+
+---
+
+## Architecture: One Endpoint, Many Methods
+
+Unlike traditional REST APIs, Bindu uses **JSON-RPC 2.0** over HTTP. Almost all operations go to a single endpoint:
+
+```
+POST /
+```
+
+The `method` field in the request body determines what operation to perform:
+
+| Method | Purpose |
+|--------|---------|
+| `message/send` | Send a message to the agent, creates a new task |
+| `message/stream` | Stream task updates (experimental) |
+| `tasks/get` | Get the status and results of a task |
+| `tasks/list` | List all tasks for the current context |
+| `tasks/cancel` | Cancel a running task |
+| `tasks/feedback` | Provide feedback on a completed task |
+| `tasks/pushNotificationConfig/set` | Register a webhook for task updates |
+| `tasks/pushNotificationConfig/get` | Read the webhook registered for a task |
+| `tasks/pushNotificationConfig/list` | List webhook configs for a task |
+| `tasks/pushNotificationConfig/delete` | Remove a webhook from a task |
+| `contexts/list` | List all conversation contexts |
+| `contexts/clear` | Clear a conversation context |
+
+---
+
+## Quick Start
+
+### 1. Send a Message
+
+```bash
+curl -X POST http://localhost:3773 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your-token>" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "message/send",
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [{"kind": "text", "text": "Hello!"}],
+        "messageId": "msg-001",
+        "contextId": "ctx-001",
+        "taskId": "task-001",
+        "kind": "message"
+      }
+    },
+    "id": "1"
+  }'
+```
+
+### 2. Get Task Status
+
+```bash
+curl -X POST http://localhost:3773 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your-token>" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/get",
+    "params": {
+      "taskId": "task-001"
+    },
+    "id": "2"
+  }'
+```
+
+### 3. Get Agent Card
+
+```bash
+curl http://localhost:3773/.well-known/agent.json
+```
+
+---
+
+## Authentication
+
+Bindu supports three layers of authentication:
+
+### Layer 1: Bearer Token (Required)
+
+OAuth2 access token from Ory Hydra:
+
+```bash
+Authorization: Bearer <access-token>
+```
+
+**Scopes:**
+- `agent:read` — Read operations (tasks/get, tasks/list)
+- `agent:write` — Write operations (message/send, tasks/cancel)
+- `agent:execute` — Both read and write (legacy)
+
+### Layer 2: DID Signature (Optional, Agent-to-Agent)
+
+For agent-to-agent communication, sign requests with your DID:
+
+```bash
+X-DID: did:bindu:author:agent:id
+X-DID-Timestamp: 1713564000
+X-DID-Signature: <base58-encoded-signature>
+```
+
+### Layer 3: x402 Payment (Optional, Paid Agents)
+
+For paid agents, include payment proof:
+
+```bash
+X-PAYMENT: <base64-encoded-x402-payload>
+```
+
+---
+
+## Task States
+
+Every interaction creates a **Task** with a unique ID. Tasks follow this state machine:
+
+### Non-Terminal States
+
+<CardGroup cols={2}>
+  <Card title="submitted" icon="clock">
+    Queued, not yet picked up by worker
+  </Card>
+  <Card title="working" icon="spinner">
+    Agent is actively processing
+  </Card>
+  <Card title="input-required" icon="question">
+    Paused, waiting for user clarification
+  </Card>
+  <Card title="auth-required" icon="lock">
+    Paused, waiting for authentication
+  </Card>
+</CardGroup>
+
+### Terminal States
+
+<CardGroup cols={2}>
+  <Card title="completed" icon="check">
+    Success, artifacts available
+  </Card>
+  <Card title="failed" icon="xmark">
+    Processing error occurred
+  </Card>
+  <Card title="canceled" icon="ban">
+    User terminated the task
+  </Card>
+  <Card title="rejected" icon="circle-xmark">
+    Agent declined to process
+  </Card>
+</CardGroup>
+
+<Info>
+**Terminal tasks are immutable.** To refine a completed answer, submit a new `message/send` with `referenceTaskIds` pointing to the old task.
+</Info>
+
+---
+
+## Error Codes
+
+Errors follow JSON-RPC 2.0 format:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "error": {
+    "code": -32602,
+    "message": "Invalid params",
+    "data": { "field": "taskId", "reason": "required" }
+  }
+}
+```
+
+### Standard JSON-RPC Errors
+
+| Code | Name | Meaning |
+|------|------|---------|
+| `-32700` | Parse error | Invalid JSON |
+| `-32600` | Invalid Request | Malformed JSON-RPC |
+| `-32601` | Method not found | Unknown method |
+| `-32602` | Invalid params | Schema validation failed |
+| `-32603` | Internal error | Server bug |
+
+### A2A Protocol Errors
+
+| Code | Name | Meaning |
+|------|------|---------|
+| `-32001` | TaskNotFound | Task doesn't exist |
+| `-32002` | TaskNotCancelable | Task already terminal |
+| `-32003` | PushNotificationNotSupported | Agent doesn't support push |
+| `-32004` | UnsupportedOperation | Operation not available |
+| `-32005` | ContentTypeNotSupported | Unsupported output format |
+
+### Bindu Extensions
+
+| Code | Name | Meaning |
+|------|------|---------|
+| `-32009` | AuthenticationRequired | Missing bearer token |
+| `-32010` | InvalidToken | Token introspection failed |
+| `-32011` | TokenExpired | Token past expiration |
+| `-32012` | InvalidTokenSignature | DID signature verification failed |
+| `-32013` | InsufficientPermissions | Missing required scope |
+
+---
+
+## Discovery Endpoints
+
+### Agent Card
+
+```bash
+GET /.well-known/agent.json
+```
+
+Returns the A2A discovery document with:
+- Agent DID
+- Capabilities
+- Published skills
+- Payment requirements
+- Supported protocols
+
+### Skills List
+
+```bash
+GET /agent/skills
+```
+
+Returns array of all skills the agent publishes.
+
+### Skill Details
+
+```bash
+GET /agent/skills/{skillId}
+```
+
+Returns detailed documentation for a specific skill.
+
+---
+
+## Health & Monitoring
+
+### Health Check
+
+```bash
+GET /health
+```
+
+Returns `200` when healthy, `503` when degraded. Includes per-component status.
+
+### Metrics
+
+```bash
+GET /metrics
+```
+
+Prometheus text format metrics including:
+- Request counts and latency
+- Active tasks by state
+- Token usage
+- Error rates
+
+---
+
+## Webhooks & Push Notifications
+
+For long-running tasks, you don't have to poll. Pass a `push_notification_config` inside `configuration` and the agent will `POST` updates to your webhook as the task progresses:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "message/send",
+  "params": {
+    "message": { "...": "..." },
+    "configuration": {
+      "acceptedOutputModes": ["application/json"],
+      "long_running": true,
+      "push_notification_config": {
+        "id": "<uuid>",
+        "url": "https://your-app.com/webhook",
+        "token": "secret_abc123"
+      }
+    }
+  },
+  "id": "1"
+}
+```
+
+Your webhook receives status updates (state changes) and artifact updates as they happen. See the [Push Notifications guide](/bindu/learn/notification/overview) for the full event shapes and how to build a receiver.
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use stable message IDs for idempotency">
+    Generate a UUID for each message and reuse it if you need to retry. Check `tasks/list` before resending to avoid duplicates.
+  </Accordion>
+
+  <Accordion title="Poll tasks with exponential backoff">
+    Start with 1s intervals, double up to 30s max. Don't hammer the server with rapid polls.
+  </Accordion>
+
+  <Accordion title="Share contexts for conversations">
+    Use the same `contextId` across multiple messages to maintain conversation history.
+  </Accordion>
+
+  <Accordion title="Handle all terminal states">
+    Don't assume tasks always complete successfully. Check for `failed`, `canceled`, and `rejected` states.
+  </Accordion>
+
+  <Accordion title="Verify DID signatures">
+    For agent-to-agent calls, always verify the response signature against the agent's public key.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication Guide" icon="key" href="/bindu/learn/authentication/overview">
+    OAuth2 and DID setup
+  </Card>
+  <Card title="Payment Integration" icon="credit-card" href="/bindu/learn/payment/introduction">
+    x402 payment protocol
+  </Card>
+  <Card title="Push Notifications" icon="bell" href="/bindu/learn/notification/overview">
+    Webhook updates for long-running tasks
+  </Card>
+  <Card title="Example Agents" icon="code" href="/examples/beginner/echo-agent">
+    Working code examples
+  </Card>
+</CardGroup>

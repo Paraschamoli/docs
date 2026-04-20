@@ -201,7 +201,15 @@
         ]
       },
       {
-        "tab": "API",
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "api/introduction"
+            ]
+          }
+        ],
         "openapi": "/openapi.yaml"
       },
       {
