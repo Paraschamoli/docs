@@ -1,0 +1,152 @@
+---
+title: "Medium"
+description: "Thirteen gateway bugs worth skimming before you deploy"
+---
+
+Medium means: real bug, but either the blast radius is small or there's a decent workaround. You probably won't hit most of these, but it's good to recognize the shape when you do.
+
+I've grouped them by topic instead of listing them alphabetically. Same bugs, easier to hold in your head.
+
+---
+
+## Things about trusting what peers tell you
+
+Three bugs here are all about the question *"can I actually believe what this peer agent just said?"*
+
+### The signature check that passes when there's no signature
+
+**Slug:** `signature-verification-ok-when-unsigned`
+
+Sneaky one. When a peer sends back a response, the gateway can verify the signature to make sure it's really from who it claims to be. Good idea.
+
+The problem: if a peer sends back something with **zero signatures at all**, the check returns *"looks fine!"* and moves on. Which means from the outside you can't tell the difference between *"this peer doesn't sign things"* and *"somebody in the middle stripped the signatures before forwarding this to me."*
+
+Also — `file` and `data` parts are never verified at all, regardless of signing. A peer that moves its payload into a `DataPart` completely skips the signature check.
+
+**What to do.** For peers you care about trusting, set `trust.verifyDID: true` *and* check `outcome.signatures.signed > 0` yourself before believing the response. Refuse `data` or `file` parts from those peers. The gateway won't do either automatically.
+
+### The resolver picks whichever key is first
+
+**Slug:** `did-resolver-no-key-id-selection`
+
+When a peer publishes its DID document, it can list more than one public key. This happens in practice — during a key rotation you might publish the old one and the new one at the same time, just for a window.
+
+The gateway picks the first one. Every time. It doesn't look at the `keyId` in the signature to figure out which key the peer actually signed with. So during a rotation window, it might pick the wrong one and reject valid signatures, or use a stale key that happens to still be there.
+
+**What to do.** For peers using DID verification, pin them to a specific DID with `trust.pinnedDID` and coordinate rotations out-of-band. Ugly but works.
+
+### The scrubber that protects nothing
+
+**Slug:** `prompt-injection-scrubbing-theater`
+
+Peer responses go through a function that strips strings like `"ignore previous"` and `"disregard earlier"` before handing them to the planner LLM. Sounds reassuring.
+
+It isn't. Capitalization defeats it. Unicode homoglyphs defeat it. Paraphrasing defeats it. JSON-encoding the injection defeats it. Putting the injection inside a `file` or `data` part — not scrubbed at all — completely defeats it.
+
+And here's the thing: *it's worse than having no defense at all*, because downstream code might assume the scrubber is actually doing something.
+
+**What to do.** Don't rely on it. For untrusted peers, you want one of: an LLM sub-call with a strict system prompt that only produces structured data; provider-side structured-output or tool-choice constraints; or a hard JSON-schema cap on peer responses.
+
+---
+
+## Things about concurrency and what happens under load
+
+### When the user leaves, the gateway doesn't notice
+
+**Slug:** `abort-signal-not-propagated-to-bindu-client`
+
+User closes the browser. The gateway's SSE handler aborts. But the polling loops that were talking to peer agents? Those keep going. Up to 60 attempts with backoff — five minutes worst case — after the user is already gone.
+
+Related to the poll-budget bug on the [high page](/roadmap/known-issues/gateway/overview).
+
+**What to do.** Nothing client-side. Just know that an aborted plan can leave background work running for a few minutes.
+
+### The whole agent catalog gets overwritten every turn
+
+**Slug:** `agent-catalog-overwrite`
+
+Every `/plan` call, the gateway wipes the session's `agent_catalog` and replaces it with the catalog from *this* call. So if one turn has a complete list and the next turn is missing an agent — maybe that agent was temporarily unreachable, maybe your inventory churned — the gateway drops that agent from the session's record, even though earlier turns already referenced it.
+
+**What to do.** Always send the full agent catalog on every turn. Even for agents that are temporarily down.
+
+### Big sessions lose their oldest messages
+
+**Slug:** `list-messages-pagination-silent`
+
+`db.listMessages` has a default limit of 1000 rows. Long sessions silently truncate — you get the most recent 1000 messages, and the older ones are quietly dropped. No error, no warning. The planner loads this truncated view and sees a conversation that starts mid-stream.
+
+Compaction can still run on what it sees, and it'll accurately summarize that. But the messages that got truncated were never in scope to begin with.
+
+**What to do.** Trigger compaction early for sessions you expect to grow large. The real fix is cursor-based pagination.
+
+### The shutdown that drops live requests
+
+**Slug:** `no-graceful-shutdown`
+
+When the gateway shuts down, it calls `httpServer.close()` and `runtime.dispose()` back-to-back. No draining. No deadline. No graceful response for requests in flight. A rolling restart means in-flight `/plan` streams get cut mid-frame. Clients see a truncated SSE; assistant messages may be partially written but never committed.
+
+**What to do.** Rely on your reverse proxy to drain connections before SIGTERM reaches the gateway. Run at least two gateway replicas so dropped connections can retry against the other one.
+
+### Stream errors that lose already-completed tool calls
+
+**Slug:** `assistant-message-lost-on-stream-error`
+
+If the LLM stream errors mid-turn, the generator fails immediately. Any tool calls that already completed — and already got billed to your Bindu peer — are gone from the assistant message. They never get persisted.
+
+The audit row in `gateway_tasks` still exists, so the tool call is *recorded* from the gateway's perspective. But the session's history has no trace of it. Replay is inconsistent with the audit log.
+
+**What to do.** Nothing at the app level. When you're investigating session gaps, cross-reference `gateway_tasks` with `gateway_messages`. Don't trust the assistant-message view alone.
+
+---
+
+## Things about tool-calling
+
+### Permission rules that exist but are never checked
+
+**Slug:** `permission-rules-not-enforced-for-tool-calls`
+
+The planner config declares `permission: agent_call: ask`. A proper permission service exists. Wildcards evaluate correctly. Everything looks like it's set up.
+
+Except — the planner's tool-execution path never actually calls `Permission.Service.evaluate()` before running a tool. The permission system is dead code for tool calls today.
+
+**What to do.** Control which tools the LLM can call through the `agents[]` catalog you send with `/plan`. Only include agents the caller is allowed to use. That's your real policy layer right now.
+
+### Two different agents, same tool name
+
+**Slug:** `tool-name-collisions-silent`
+
+The planner normalizes tool names: non-alphanumeric characters become `_`, and the whole thing gets truncated to 80 chars. So `research-v2` and `research_v2` both normalize to the same thing. Distinct `(agent, skill)` pairs can end up with the same tool ID. The second registration silently overwrites the first.
+
+Companion bug: the function that parses agent names back out of tool IDs uses a non-greedy regex. If your agent name has an underscore, parsing splits it in the wrong spot.
+
+**What to do.** Use globally-unique agent names. Don't mix hyphens and underscores. If you need the `task.started` SSE agent field to be accurate, avoid underscores in agent names entirely.
+
+### Skills expect structured input; they get a string
+
+**Slug:** `tool-input-sent-as-textpart`
+
+The planner wraps tool arguments with `JSON.stringify(args)` and sends them as a Bindu `TextPart`. Many skills expect a `DataPart` — a proper structured object — especially if they have a schema-validated input. Those skills reject the `TextPart`, or try to parse JSON out of a text field and behave weirdly.
+
+**What to do.** Nothing client-side — the gateway always sends `TextPart`. Affected skills need to accept either form on their server side until this is fixed.
+
+### The schema converter that only handles the basics
+
+**Slug:** `json-schema-to-zod-incomplete`
+
+When the planner receives a skill's input schema, it converts it to a Zod validator so the LLM can be told what's valid. It handles the simple types — `string|number|integer|boolean|array|object` — and nothing else. No `enum`. No `oneOf`. No `pattern`. No length or range constraints.
+
+So the LLM gets no signal about what values are actually valid. It submits something technically well-typed but semantically wrong; validation passes locally; the real peer rejects it.
+
+**What to do.** Document the full constraints in your skill's human-readable `description` so the planner LLM picks them up from the prompt text rather than the structured schema.
+
+---
+
+## Things about the network edge
+
+### No throttling, no CORS, no body limit
+
+**Slug:** `no-rate-limit-cors-body-size-limit`
+
+The gateway's HTTP layer has no rate limiting, no CORS policy, and no body-size limit. One client can fire a hundred requests at once; a 500 MB JSON payload gets accepted, parsed, and held in memory. All three are DoS-shaped problems.
+
+**What to do.** Deploy behind nginx, Cloudflare, or an API Gateway that handles these. The gateway assumes it's running behind one.

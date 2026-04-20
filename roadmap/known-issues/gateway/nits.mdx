@@ -1,0 +1,56 @@
+---
+title: "Nits"
+description: "Small stuff that bugs the careful reader"
+---
+
+Not really bugs. Dead code, pointless types, a test-coverage confession. If you're reading the codebase and something looks off, it might be here.
+
+---
+
+### Dead variable in the planner
+
+**Slug:** `tasks-recorded-is-dead-state`
+
+There's a `tasksRecorded: string[]` in the planner that gets populated inside `buildSkillTool` — and then never returned, never persisted, never read by anything. Pure dead code.
+
+**What to do.** Nothing. Delete it on the next cleanup pass.
+
+---
+
+### A conditional type that isn't
+
+**Slug:** `map-finish-reason-pointless-ternary`
+
+`mapFinishReason` in [`gateway/src/session/prompt.ts`](https://github.com/GetBindu/Bindu/blob/main/gateway/src/session/prompt.ts) has a parameter type of `StreamEvent["type"] extends "finish" ? any : any`. Which — no matter how you squint at it — is `any`. The conditional adds zero information. Someone was probably partway through refactoring.
+
+**What to do.** Simplify on the next cleanup pass.
+
+---
+
+### `Effect.promise` eats rejections silently
+
+**Slug:** `db-effect-promise-swallows-errors`
+
+Two spots in the DB layer use `Effect.promise(...)`. Subtle thing about `Effect.promise`: when the underlying promise rejects, it treats that as a *defect*, not an Effect error. Which means transient Supabase failures at those call sites can silently resolve without the caller ever seeing them.
+
+**What to do.** Audit every `Effect.promise` call. Prefer `Effect.tryPromise` with an explicit `catch` for anything non-trivial.
+
+---
+
+### The honest test-coverage backlog
+
+**Slug:** `test-coverage-gaps`
+
+Less a bug, more a confession. The test suite doesn't cover, and probably should:
+
+- Concurrent `/plan` requests end to end (only the pubsub filter is tested).
+- Compaction correctness on long multi-pass sessions.
+- Revert.
+- SSE frame ordering under load.
+- Non-English payloads.
+- Sessions larger than the 1000-row pagination limit.
+- Missing `bearer_env` env vars.
+- Aborted requests propagating to the Bindu client.
+- The snake_case flip on `tasks/cancel`.
+
+**What to do.** Nothing — this is the backlog. If you're fixing one of the items on the other severity pages, add a test for it in the same PR. That's how this list shrinks.

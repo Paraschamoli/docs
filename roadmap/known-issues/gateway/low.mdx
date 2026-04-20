@@ -1,0 +1,158 @@
+---
+title: "Low"
+description: "Sixteen smaller gateway issues — mostly 'good to know'"
+---
+
+Low severity is the "good to know" pile. These are real bugs, but they're unlikely to wake you up at 2am. Workarounds are usually tiny. A few of them really matter if your deployment happens to hit them, so it's worth a skim.
+
+Grouped by theme.
+
+---
+
+## Scaling up and keeping the lights on
+
+### Two gateway processes can still race
+
+**Slug:** `compaction-dedupe-single-process-only`
+
+We fixed a race where two compaction attempts could fight over one session. The fix uses an in-process `Map` to dedupe. Works great — for one process.
+
+If you horizontally scale the gateway — multiple Node processes pointing at the same Supabase — the dedupe only works within each process. Two processes could still race each other.
+
+**What to do.** Run a single gateway process. Horizontal scaling is a Phase 2 thing for us. When we do it, the fix is probably a Postgres version column on `gateway_sessions` with optimistic concurrency.
+
+### Sessions grow forever
+
+**Slug:** `no-ttl-cleanup`
+
+The config has a knob called `gateway.session.ttlDays` (default 30). Sounds like old sessions get cleaned up. They don't. Nothing reads that knob. `gateway_sessions`, `gateway_messages`, and `gateway_tasks` keep growing until you notice your database is full.
+
+**What to do.** Schedule a Supabase SQL job that deletes rows older than your desired TTL. The gateway won't do it for you.
+
+### Config changes need a full restart
+
+**Slug:** `no-config-hot-reload`
+
+Want to tweak `agents/planner.md`, or `gateway.config.json`, or a permission rule? You have to restart. The config is read once at boot.
+
+**What to do.** Restart. If you want to live-tune the planner prompt, consider pulling it dynamically from a database or some other source that can change without a process restart.
+
+### Migrations only go forward
+
+**Slug:** `no-migration-rollback`
+
+Every migration under `gateway/migrations/` goes forward only — there's no paired `down.sql` to reverse it. Rolling back a migration means doing the reverse SQL by hand.
+
+**What to do.** If your production might need rollback, keep rollback scripts outside the `migrations/` folder. Common choice for smaller projects; fix properly only if you really need reversible migrations.
+
+### Env var interpolation that only handles one shape
+
+**Slug:** `resolve-env-limited-to-simple-var`
+
+The config loader replaces `"$VAR"` with its environment-variable value. But that's it. No `"${VAR}/suffix"`. No defaults (`"${VAR:-default}"`). No nested expansion. A config value like `"https://${HOST}/api"` just passes through as a literal string with a dollar sign in it.
+
+**What to do.** Precompute interpolated values before they hit the config file. Don't rely on shell-style expansion.
+
+---
+
+## Knowing what's happening
+
+### The health endpoint that's always happy
+
+**Slug:** `health-endpoint-no-dependency-probe`
+
+`GET /health` always returns `200 {ok: true}`. Doesn't matter if Supabase is down. Doesn't matter if the LLM provider is timing out. Your load balancer sees "healthy" while the gateway is literally unable to serve `/plan` traffic.
+
+Fine for liveness. Useless for readiness.
+
+**What to do.** Add a separate readiness check — maybe hit `/plan` with a no-op payload and a short deadline — and use that as the readiness signal instead.
+
+### No way to correlate user reports to logs
+
+**Slug:** `no-request-id-in-logs`
+
+Nothing in the `/plan` handler emits a request ID or correlation ID. When an SSE stream errors and a user reports it, there's no way to tie their report to a specific log line on the server. Most server-side logs don't even include the session ID.
+
+**What to do.** Set `X-Request-Id` at your reverse proxy and log it there. Correlate by timestamp and peer URL until the gateway learns to emit its own.
+
+### Missing env var looks like a network failure
+
+**Slug:** `bearer-env-error-collapses-to-transport`
+
+You've configured a peer with `auth: { type: "bearer_env", envVar: "FOO" }` but forgot to set `$FOO`. The auth helper throws. The error gets wrapped by Effect machinery as a generic transport error. The logs show `"transport: ..."` — you can't tell *"env var missing"* from *"peer is offline."*
+
+**What to do.** Validate env vars at gateway boot so the problem shows up loudly at startup. Or grep the logs for `"auth: env var … is not set"` — the message is still in the string, just buried.
+
+---
+
+## Counting tokens and resolving DIDs
+
+### The token counter that's wrong for anything not English
+
+**Slug:** `token-estimation-chars-div-4`
+
+The gateway estimates tokens by dividing the character count by 4. Roughly right for English prose. Pretty wrong for code, which has more punctuation. Very wrong for CJK languages, closer to `chars / 1.5`. Combined with the model-threshold bug on the high page, compaction timing for non-English sessions is unreliable.
+
+**What to do.** Set a more conservative `triggerFraction`. Try `0.6` instead of the default `0.8` if your sessions are mostly code or CJK.
+
+### Simultaneous DID resolves all hit the network
+
+**Slug:** `did-resolver-no-stampede-protection`
+
+The DID resolver caches results for 5 minutes. When the cache is cold or expires, multiple concurrent `resolve()` calls for the same DID all miss at once and fire parallel HTTP fetches. Functionally harmless. Just wasteful.
+
+**What to do.** In practice, nothing. 5 minutes is long enough that stampedes are rare. If it ever becomes a real problem, an in-flight dedupe fixes it.
+
+---
+
+## Session edges
+
+### First-time simultaneous plans for the same session
+
+**Slug:** `resume-race-duplicate-session`
+
+Two `/plan` requests with the same `session_id` where neither one has been created yet. Both miss the lookup. Both call `sessions.create()`. The `UNIQUE` constraint catches the second one and the caller sees a 500.
+
+**What to do.** Retry the failing request. The first insert succeeded, so a retry lands on the existing row.
+
+### Cancels that don't retry the casing flip
+
+**Slug:** `cancel-casing-not-retried`
+
+When the polling loop gives up on a peer, it sends a best-effort `tasks/cancel`. That cancel uses `taskId` in camelCase — and never tries the snake_case variant that the poll loop itself retries. For peers that need `task_id` in snake_case (which is the specific case the poll loop's flip exists for), the cancel silently fails. Remote task leaks.
+
+**What to do.** Peers that require snake-case on `tasks/cancel` should also accept camelCase, or they'll orphan tasks on poll timeout.
+
+### Compaction summary gets labeled as a user message
+
+**Slug:** `compaction-summary-injected-as-user-role`
+
+After compaction, the summary goes back into the history as a synthetic message with `role: "user"`. Works fine most of the time, but the LLM can read the summary as if it were the user's turn — especially if the summary starts with something that reads like a directive.
+
+**What to do.** The prefix `[Prior session context, compacted]` already signals what it is, and the planner usually handles it correctly. Just watch for cases where the model echoes the summary verbatim as if the user asked something.
+
+### Revert with ties breaks the boundary
+
+**Slug:** `revert-millisecond-ties-nondeterministic`
+
+`revertTo` uses `created_at` as the cut line. If two messages share the exact same millisecond (rare but possible under contention), their order is whatever the database decides. Revert might include or exclude some of them inconsistently.
+
+**What to do.** After a revert, inspect the reverted rows. Un-mark any that shouldn't have been included. The proper fix is a monotonically-increasing `seq` column.
+
+### Revert doesn't tell the peers to stop
+
+**Slug:** `revert-doesnt-cancel-remote-tasks`
+
+When you revert, the gateway marks local audit rows as `reverted=true`. It does *not* send `tasks/cancel` to the peers for any tasks still running in the reverted window. Those remote tasks keep going, burning peer resources and (for paid skills) racking up cost until they finish on their own.
+
+This is documented as intentional — the peers already did the work, and cancel semantics are messy — but it can surprise you.
+
+**What to do.** Accept that revert only clears local state. Stragglers complete remotely; their audit rows stay marked reverted so resume hides them.
+
+### Empty agents list, no 400
+
+**Slug:** `empty-agents-catalog-no-400`
+
+`PlanRequest.agents` defaults to `[]`. A `/plan` with zero agents is accepted. The planner runs with no tools. The LLM tries to call a tool it can't see. You get back an LLM-generated error message — not a clear "you forgot to send agents."
+
+**What to do.** Always include at least one agent in the request. Or validate `agents.length > 0` client-side before sending.

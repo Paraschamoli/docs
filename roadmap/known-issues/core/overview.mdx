@@ -1,0 +1,103 @@
+---
+title: "High"
+description: "Four real problems in the Python runtime — all about money"
+---
+
+Bindu Core is the Python runtime. The thing `bindufy()` actually wraps around your handler — the HTTP server, the middleware, the scheduler, all of it.
+
+Four high-severity bugs live here right now. Every single one of them is in the x402 payment middleware. That's not a coincidence — payment code is new, and payment code is the kind of code where small mistakes lose real money. So if you're using x402 to charge for agent work, please read all four of these before you deploy.
+
+<Warning>
+  Short version of the whole page: **don't treat x402 as your only line of revenue protection in the current release.** Put something in front of it, or use a different payment model. We'll explain why, one scenario at a time.
+</Warning>
+
+---
+
+## Bug #1: the locked door that opens on a bad knock
+
+**Slug:** `x402-middleware-fails-open-on-body-parse`
+
+Imagine a door with a card reader. Badge works, door opens. Badge doesn't work, door stays shut. Simple.
+
+Now imagine a door with a card reader that, if it can't read the badge at all (badge is broken, magnetic strip is damaged, whatever), just... opens. That's what this bug does.
+
+Here's the setup. Your agent has an x402 payment check in front of it. A request comes in with a body that fails to parse — maybe it's truncated, maybe it's bad UTF-8, maybe it's deliberately malformed. Python's `json.loads` throws an exception.
+
+The middleware catches the exception with a bare `except Exception:`. And then — this is the part that hurts — it calls `await call_next(request)` anyway. The request reaches your agent. The agent runs. No payment was ever checked.
+
+There's a related trap right after that. The next check is *"is the method in the protected_methods list?"* If a request parses but reports an unknown method name, same thing — payment is bypassed.
+
+The code is at [`bindu/server/middleware/x402/x402_middleware.py`](https://github.com/GetBindu/Bindu/blob/main/bindu/server/middleware/x402/x402_middleware.py) lines 213–215. The right behavior is *"if I can't tell whether this is paid, reject it."* The current behavior is *"let it through."*
+
+**What to do today.** If you're running x402, make sure every path to your agent's paid methods has to go through the parse check. Treat x402 as advisory — put something in front of it that actually enforces payment, like a reverse-proxy rule. x402 becomes your second line, not your only one.
+
+The real fix is to return a 402 on parse failure, and to narrow the `except` to just `json.JSONDecodeError` and `UnicodeDecodeError`.
+
+---
+
+## Bug #2: one ticket, many shows
+
+**Slug:** `x402-no-replay-prevention`
+
+Concert ticket scenario. You buy one ticket to a concert. You show it at the door. They scan it. You walk in. Great.
+
+Now imagine you walk out, walk back in, and they scan the same ticket again. And again. And again. All night. You bought one ticket; you got unlimited entries.
+
+That's this bug.
+
+Alice pays $10 once. The server returns her a payment token. She attaches it as `X-PAYMENT` to Request A. All five checks pass — scheme, authorization, amount, network, balance. The task runs. The $10 clears on-chain. Everything looks right.
+
+Then she sends Request B with the **exact same token**. All five checks pass again. Task runs. No additional charge — the on-chain authorization already cleared, and nobody is tracking whether the token has been used before. She sends Request C. Request D. As many requests as she wants, until the token's `validBefore` timestamp finally expires. That could be seconds. Or minutes. That's a lot of free work for one payment.
+
+The function does five things, all of which are useful. What it doesn't do is remember. The `(nonce, payer)` pair is never recorded. The `(txhash, chain)` pair is never recorded. The payment session token is never marked consumed.
+
+**What to do today.** Set very short `validBefore` windows on the authorizations your clients issue. Seconds, not minutes. That caps how much damage one replay can do.
+
+The real fix is to save `(nonce, payer_address)` in a dedupe store — something like Redis `SETNX`, keyed by the nonce, with a TTL that outlasts `validBefore`. Reject any payload whose nonce is already there.
+
+---
+
+## Bug #3: the bouncer who doesn't check the signature
+
+**Slug:** `x402-no-signature-verification`
+
+This is the bad one. Pay attention.
+
+Mallory looks up Alice's wallet address on-chain. That's public information — she can just search for it. She also knows Alice holds USDC, because that's also public. Now Mallory writes a plausible-looking EIP-3009 payment payload. She names Alice as the payer. She picks whatever amount she wants. And for the signature field — the bytes that cryptographically prove Alice actually authorized this — **Mallory types in whatever she feels like.**
+
+She sends it to your agent. The middleware checks: scheme good, network good, amount good, Alice has a balance. Four out of four. Request accepted. Your agent does the work. Mallory gets the result.
+
+Alice? Alice never gets charged. The forged authorization never clears on-chain, because it wasn't really signed by her. But your agent already did the work. You burned real compute for free.
+
+Look at the validation routine at [`bindu/server/middleware/x402/x402_middleware.py`](https://github.com/GetBindu/Bindu/blob/main/bindu/server/middleware/x402/x402_middleware.py) lines 282–394. The docstring at line 292 literally labels the signature check *"optional."* And the actual code skips it. Combined with the replay bug above, **there is no cryptographic link between the caller and the payment at all**.
+
+**What to do today.** Do not rely on x402 for revenue protection in the current release. Two decent options:
+
+1. Sit x402 behind a proxy that verifies the signature out-of-band, before the request ever reaches your agent.
+2. Turn x402 off and use a pre-paid credits model tied to an authenticated account.
+
+The real fix is to call `eth_account.Account.recover_message` (or equivalent) on the EIP-3009 digest and reject the payment if the recovered address doesn't match the claimed payer.
+
+---
+
+## Bug #4: "no contract here" means "payment's fine"
+
+**Slug:** `x402-balance-check-skipped-on-missing-contract-code`
+
+One more scenario. You set up x402. You configure the token address. You typo the address — you copy-pasted from the wrong chain, or you fat-fingered a character. The token address you configured points at nothing.
+
+Or maybe your config is perfect, but your RPC provider has a hiccup and `eth.get_code()` briefly returns empty bytes. Same outcome from the gateway's perspective.
+
+Here's what the middleware does. It notices *"there's no contract at this address."* It logs a warning — `"Skipping balance check"`. And then it **returns `True`**. Payment valid, according to the middleware. Attacker with a zero-balance wallet can now pay nothing and get work.
+
+The code is at [`bindu/server/middleware/x402/x402_middleware.py`](https://github.com/GetBindu/Bindu/blob/main/bindu/server/middleware/x402/x402_middleware.py) lines 348–352. Tiny thing to note: if the balance call *throws* an exception, the outer `except Exception` does fail closed — that part is correct. But the specific "no code at this address" branch doesn't throw. It just logs a warning and falls through to "ok."
+
+**What to do today.** Watch your logs for the string `"No contract found at … Skipping balance check"`. If you see that in production, your payment check is effectively disabled. Pin a known-good RPC endpoint and verify the token address at startup before you accept any paid traffic.
+
+The real fix is to fail closed when the contract is missing, and to check the `asset` against a hardcoded list of known USDC addresses per chain at startup.
+
+---
+
+## That's the four
+
+Those are the big ones, and they're all about money. The Core medium page covers the rest — authentication edges, CORS config, a classic concurrency race. One click away in the sidebar.

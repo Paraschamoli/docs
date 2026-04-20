@@ -1,0 +1,112 @@
+---
+title: "Medium"
+description: "Seven more Core bugs — auth edges, CORS, and a concurrency race"
+---
+
+Seven medium bugs in the Python runtime. Most are security-adjacent — the kind of thing worth knowing about before you ship, even if the blast radius is bounded.
+
+Grouped by topic.
+
+---
+
+## Who's allowed to do what
+
+### The authz switch you can accidentally leave off
+
+**Slug:** `authz-scope-check-behind-optional-flag`
+
+Every authenticated request goes through a scope check — does this token have `agent:write` for a write method, `agent:read` for a read method, and so on. Great. Except the whole check is wrapped in `if app_settings.auth.require_permissions:`.
+
+When that flag is false — which happens a lot during bringup, demos, debugging — the entire scope layer disappears. Any authenticated token works for any method. Your service has auth but no authorization.
+
+This is a classic deployment landmine. An operator flips the flag off on a Tuesday to unblock something, forgets to flip it back on, and by Friday the service is scopeless and nobody noticed.
+
+**What to do.** Always deploy with `require_permissions: true`, and define per-method scopes in `auth.permissions`. Treat the flag as deprecated. A small startup assertion that refuses to boot when `require_permissions: false` and `auth.enabled: true` would catch this before it ships.
+
+---
+
+### Any Hydra client can walk in
+
+**Slug:** `did-admission-control-missing`
+
+Here's how your auth works. The Hydra middleware checks two things: is this OAuth token valid, and is this request actually signed by the DID the token claims? Both checks are solid — forging a signature for a known DID isn't feasible.
+
+What's missing is the layer above that: *which DIDs are you willing to serve in the first place?*
+
+In a multi-tenant deployment, or one where Hydra's admin API is reachable by more than just you, a stranger can register their own OAuth client with any DID they want, sign requests with the matching key, and your agent will happily serve them. The token validates. The signature validates. The request reaches your handler.
+
+What they get: the ability to submit tasks, which burns your compute and LLM budget, plus the response stream.
+
+What they don't get, thanks to an earlier fix ([idor-task-ownership postmortem](/roadmap/known-issues/postmortems/core/idor-task-ownership)): access to other tenants' tasks. Ownership-scoped reads mean their tasks are only visible to them.
+
+For a single-tenant deployment with Hydra admin locked down, this doesn't reach you — Hydra registration is your de facto trust boundary. For SaaS or multi-tenant or shared-Hydra setups, the severity climbs to high.
+
+**What to do.** Lock down Hydra admin API access. Audit the list of registered clients before you expose the agent. For stronger posture: sit a reverse proxy in front that filters by a known allowlist of token introspection subjects. Or add a tiny post-auth middleware that rejects when `client_did not in app_settings.auth.allowed_dids`. A native fix would add an `ALLOWED_DIDS` config and enforce it after signature verification — maybe 30 lines in one file.
+
+---
+
+## CORS, caches, and rate limits
+
+### CORS with credentials and a loose origin list
+
+**Slug:** `cors-allow-credentials-with-user-origins`
+
+The CORS middleware is started with `allow_credentials=True`, `allow_methods=["*"]`, `allow_headers=["*"]`, and whatever `cors_origins` list you passed in.
+
+Starlette does reject the literal wildcard `["*"]` combined with credentials, so that specific misconfiguration can't happen. But an over-broad list — say `["https://example.com", "null"]`, or a reflected-origin scheme, or a list that includes every internal tool — still gives you a credentialed cross-origin surface. There's no startup assertion that your origins are actually safe with credentials turned on.
+
+**What to do.** Keep `cors_origins` to an exhaustive, minimal list of known origins. Never include `"null"`, `"*"`, or a reflected-origin scheme. If you can, terminate CORS at a reverse proxy and leave `cors_origins=None` on the Bindu app.
+
+---
+
+### Revoked tokens stay valid for five minutes
+
+**Slug:** `hydra-token-cache-revocation-lag`
+
+The Hydra middleware caches introspection results for up to 300 seconds. Fast, good for load.
+
+But: when you revoke a token in Hydra, the cache doesn't hear about it. The revoked token keeps working for up to five minutes across every Bindu instance that already cached it.
+
+For most tokens that's fine. For sensitive things — admin operations, payment capture, key rotation — five minutes is an uncomfortably long window.
+
+**What to do.** Reduce `CACHE_TTL_SECONDS` for high-risk deployments, or disable the cache entirely for specific scopes. The real fix is either a revocation callback from Hydra, or a short TTL combined with aggressive eviction when something suspicious happens.
+
+---
+
+### One caller can exhaust the whole runtime
+
+**Slug:** `no-rate-limit-or-quota-per-caller`
+
+Same shape as the gateway's no-rate-limit bug, different layer. The A2A endpoint, the scheduler, and the worker all run with no per-caller quotas and no global concurrency caps. A single authenticated DID firing `message/send` in a loop can drain the scheduler queue, the storage writes, and memory (tasks are kept hot for fast lookup).
+
+Request bodies are also uncapped on the Bindu app. Nothing in the Python code imposes rate limits, per-caller task caps, or a worker-pool semaphore.
+
+**What to do.** Deploy behind a reverse proxy (nginx, Cloudflare, API Gateway) that enforces per-IP or per-DID rate and body-size limits. Running Bindu directly on the open internet without a proxy is asking to be DoSed. The real fix is per-DID quotas enforced at the `TaskManager.send_message` level, plus an explicit body-size limit on the Starlette app.
+
+---
+
+## Two more, each their own shape
+
+### Cancel races with completion
+
+**Slug:** `task-cancel-check-then-act-race`
+
+A classic *"time of check to time of use"* race. The handler loads the task, reads its state, sees it's not terminal, and then calls `scheduler.cancel_task(...)`. Three separate steps with nothing holding the state still in between.
+
+If a worker finishes the task between the read and the write, the cancel tries to cancel a task that already completed. What happens after that depends on the scheduler — not deterministic. The second `load_task` at line 90 may return a terminal task with the cancel silently ignored, and the caller thinks the cancel worked.
+
+**What to do.** Treat `cancel_task` as best-effort and always re-check the state after the call returns. The real fix is a compare-and-swap in storage — `update_task_state_if(from, to)` — that returns false when the state moved underneath you.
+
+---
+
+### Malformed context IDs create new contexts silently
+
+**Slug:** `context-id-silent-fallback`
+
+A client sends a `context_id` that isn't a valid UUID. The server logs a warning, makes up a fresh UUID, and continues as if the client had sent no `context_id` at all.
+
+The client thinks it's continuing conversation X. It's actually starting a new, isolated one. The old context is orphaned.
+
+This is also a cheap way to inflate storage. Send thousands of malformed `context_id`s and watch the new orphaned contexts pile up.
+
+**What to do.** Validate `context_id` before sending. The real fix is to reject malformed UUIDs with a JSON-RPC `-32602 "Invalid params"` instead of silently making up a new one.

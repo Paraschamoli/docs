@@ -213,12 +213,62 @@
         "openapi": "/openapi.yaml"
       },
       {
-        "tab": "Roadmap",
+        "tab": "Roadmap & Issues",
         "groups": [
           {
             "group": "Roadmap",
             "pages": [
               "roadmap/introduction/overview"
+            ]
+          },
+          {
+            "group": "Known Issues",
+            "pages": [
+              "roadmap/known-issues/overview",
+              {
+                "group": "Gateway",
+                "pages": [
+                  "roadmap/known-issues/gateway/overview",
+                  "roadmap/known-issues/gateway/medium",
+                  "roadmap/known-issues/gateway/low",
+                  "roadmap/known-issues/gateway/nits"
+                ]
+              },
+              {
+                "group": "Bindu Core",
+                "pages": [
+                  "roadmap/known-issues/core/overview",
+                  "roadmap/known-issues/core/medium",
+                  "roadmap/known-issues/core/low"
+                ]
+              },
+              {
+                "group": "Postmortems",
+                "pages": [
+                  "roadmap/known-issues/postmortems/overview",
+                  {
+                    "group": "Bindu Core",
+                    "pages": [
+                      "roadmap/known-issues/postmortems/core/did-signature-fail-open",
+                      "roadmap/known-issues/postmortems/core/idor-task-ownership",
+                      "roadmap/known-issues/postmortems/core/types-populate-by-name",
+                      "roadmap/known-issues/postmortems/core/did-document-endpoint-raw-dict",
+                      "roadmap/known-issues/postmortems/core/did-signature-overbroad-exceptions"
+                    ]
+                  },
+                  {
+                    "group": "Gateway",
+                    "pages": [
+                      "roadmap/known-issues/postmortems/gateway/compaction-concurrent-races",
+                      "roadmap/known-issues/postmortems/gateway/compaction-lossy-second-pass",
+                      "roadmap/known-issues/postmortems/gateway/compaction-mid-turn-cut",
+                      "roadmap/known-issues/postmortems/gateway/spawnreader-fiber-leak",
+                      "roadmap/known-issues/postmortems/gateway/sse-cross-contamination",
+                      "roadmap/known-issues/postmortems/gateway/timing-unsafe-token-compare"
+                    ]
+                  }
+                ]
+              }
             ]
           }
         ]

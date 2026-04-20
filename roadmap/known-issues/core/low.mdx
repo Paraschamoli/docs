@@ -1,0 +1,28 @@
+---
+title: "Low"
+description: "One small Core issue — artifact name sanitization"
+---
+
+Just one on the list today.
+
+---
+
+### The name that could escape the sandbox
+
+**Slug:** `artifact-name-not-sanitized`
+
+When an agent produces an artifact, it can give it a name in its manifest. The function that saves that artifact takes the name verbatim — no filtering, no `basename`, nothing. Whatever the agent set, that's what gets stored.
+
+Right now that's fine, because the current storage backend is Postgres. The name is just a column value. It goes into a row, and that's the end of its story.
+
+But if you ever switch to a file-based or S3-prefixed backend that actually builds paths out of artifact names — and an agent returns `artifact_name="../../etc/passwd"` — you've suddenly got a path-traversal bug. The current code doesn't *have* this bug, exactly. It's a trap waiting for a future storage backend to fall into.
+
+**What to do.** If you run a file-backed artifact store today, apply `os.path.basename` and an allow-list regex before writing anything.
+
+The proper fix is to sanitize inside `from_result` itself:
+
+```python
+artifact_name = os.path.basename(artifact_name) or "result"
+```
+
+Cheap defense, visible surface. Worth doing before someone switches backends and gets surprised.

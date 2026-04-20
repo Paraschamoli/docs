@@ -1,0 +1,129 @@
+---
+title: "Overview"
+description: "A quiet, honest tour of where Bindu isn't great yet"
+---
+
+Software has bugs. Open source software has bugs that are *public* bugs. You can either pretend otherwise and hope nobody notices, or write them down where everyone can find them.
+
+We chose door number two.
+
+---
+
+## At a glance
+
+<CardGroup cols={3}>
+  <Card title="48 open" icon="list-check">
+    Known issues across Gateway and Bindu Core today
+  </Card>
+  <Card title="11 fixed" icon="check">
+    Graduated into the postmortem archive, kept forever
+  </Card>
+  <Card title="7 high" icon="fire">
+    Severity you should read before you deploy
+  </Card>
+</CardGroup>
+
+---
+
+## How to read this section
+
+<Steps>
+  <Step title="Read the scenario first">
+    High-severity entries open with a short story — what the bug looks like from the outside. If your debugging matches, you've probably found it.
+  </Step>
+  <Step title="Glance at the cause">
+    The technical explanation. Which file, which line, which wrong assumption.
+  </Step>
+  <Step title="Apply the workaround">
+    Something you can do today, while we work on the real fix.
+  </Step>
+</Steps>
+
+When we ship a fix, the issue disappears from this page. If the fix taught us something, it graduates into a **postmortem** — kept forever so the next maintainer can learn.
+
+<Note>
+  The source of truth lives in the Bindu repo at [`bugs/known-issues.md`](https://github.com/GetBindu/Bindu/blob/main/docs/bugs/known-issues.md). This site mirrors it. Same content, same severities, same slugs. Filing a GitHub issue? Reference the slug and we'll know exactly what you mean.
+</Note>
+
+---
+
+## Severity — what each level means
+
+<CardGroup cols={2}>
+  <Card title="High" icon="fire">
+    Real problems you'll hit in production. Stop and read the scenarios.
+  </Card>
+  <Card title="Medium" icon="triangle-exclamation">
+    Real bugs with narrower blast radius or a decent workaround. Worth skimming.
+  </Card>
+  <Card title="Low" icon="circle-info">
+    Things that are off, but unlikely to wake you up at 2am.
+  </Card>
+  <Card title="Nit" icon="feather">
+    Not really bugs. Dead code, pointless types, small rainy-day cleanups.
+  </Card>
+</CardGroup>
+
+---
+
+## Gateway
+
+The layer between your clients and your Bindu agents. Sessions, compaction, the planner LLM, routing tool calls to peers. When something breaks end-to-end, it's often here.
+
+<CardGroup cols={4}>
+  <Card title="High" icon="fire" href="/roadmap/known-issues/gateway/overview">
+    3 bugs
+  </Card>
+  <Card title="Medium" icon="triangle-exclamation" href="/roadmap/known-issues/gateway/medium">
+    13 bugs
+  </Card>
+  <Card title="Low" icon="circle-info" href="/roadmap/known-issues/gateway/low">
+    16 bugs
+  </Card>
+  <Card title="Nits" icon="feather" href="/roadmap/known-issues/gateway/nits">
+    4 items
+  </Card>
+</CardGroup>
+
+---
+
+## Bindu Core (Python)
+
+The runtime `bindufy()` wraps around your handler. Most of what's here is security-adjacent: the x402 payment path and the Hydra auth middleware.
+
+<Warning>
+  Using x402 to charge money? Read the four Core High-severity bugs **first**. The short version: don't rely on x402 as your only revenue protection in the current release. There's detail on the Core High page.
+</Warning>
+
+<CardGroup cols={4}>
+  <Card title="High" icon="fire" href="/roadmap/known-issues/core/overview">
+    4 bugs
+  </Card>
+  <Card title="Medium" icon="triangle-exclamation" href="/roadmap/known-issues/core/medium">
+    7 bugs
+  </Card>
+  <Card title="Low" icon="circle-info" href="/roadmap/known-issues/core/low">
+    1 bug
+  </Card>
+  <Card title="SDKs / FE" icon="clock">
+    Nothing yet
+  </Card>
+</CardGroup>
+
+---
+
+## Postmortems
+
+The other side of this page. Known Issues shrinks as we fix things — but the fixes worth remembering don't vanish into git history. They graduate into the postmortem archive. One file per bug, kept indefinitely. Each one explains what broke, why, and where else the same shape could hide.
+
+<Card title="Browse the postmortems" icon="books" href="/roadmap/known-issues/postmortems/overview">
+  11 fixed bugs so far — 5 in Core, 6 in Gateway. Each one teaches something about how this codebase fails.
+</Card>
+
+---
+
+## One last thing
+
+We think you deserve to know this stuff upfront. We'd rather you find `x402-no-signature-verification` here, on a page we wrote on purpose, than in a panicked Slack message after a Monday morning incident.
+
+If you hit one of these and want to help fix it, open a GitHub Issue referencing the slug. That's all we need.

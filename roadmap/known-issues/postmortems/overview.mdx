@@ -1,0 +1,87 @@
+---
+title: "Overview"
+description: "The archive of fixed bugs worth remembering"
+---
+
+When we fix a bug that taught us something, we write a postmortem. One file per bug. Kept indefinitely.
+
+Unlike the Known Issues pages — which shrink as we fix things — postmortems only grow. Six months from now, a new maintainer should be able to read these and understand how this codebase has failed before. That's the point.
+
+---
+
+## What's in each one
+
+Every postmortem follows the same five-part shape:
+
+- **Symptom** — what a user, operator, or downstream system saw when the bug fired. Outside-in, not code-first.
+- **Root cause** — the specific code path and, crucially, *why* it was wrong. The mental model that led to the mistake, not just the line that got flipped.
+- **Fix** — what changed, with links to the commits.
+- **Why the tests didn't catch it** — an honest paragraph. The single most useful section in the whole file.
+- **Class of bug — where else to watch** — the pattern generalized, with specific other code paths that might hide the same shape. This is what turns a log entry into a tool.
+
+Some bugs don't warrant this. Typos, dependency bumps, style cleanups, one-off bugs with no generalizable lesson — they live in the commit message and nowhere else. The bar for writing a postmortem is: *does the fix teach a future reader something about this codebase's failure modes?*
+
+---
+
+## Bindu Core (5)
+
+<CardGroup cols={2}>
+  <Card title="DID signature fails open" href="/roadmap/known-issues/postmortems/core/did-signature-fail-open">
+    The middleware noted "can't verify" and let the request through anyway. Textbook fail-open.
+  </Card>
+  <Card title="IDOR on tasks and contexts" href="/roadmap/known-issues/postmortems/core/idor-task-ownership">
+    Any authenticated caller could read, cancel, or clear another caller's tasks. Row-level auth was just... missing.
+  </Card>
+  <Card title="Pydantic populate_by_name mismatch" href="/roadmap/known-issues/postmortems/core/types-populate-by-name">
+    Types accepted camelCase over the wire but rejected snake_case internally. Quiet contract drift.
+  </Card>
+  <Card title="DID document endpoint returned raw dict" href="/roadmap/known-issues/postmortems/core/did-document-endpoint-raw-dict">
+    The resolver returned the wrong shape — crashed clients expecting a proper DID document.
+  </Card>
+  <Card title="DID signature overbroad exceptions" href="/roadmap/known-issues/postmortems/core/did-signature-overbroad-exceptions">
+    A bare `except Exception` turned real bugs into silent false-negatives.
+  </Card>
+</CardGroup>
+
+---
+
+## Gateway (6)
+
+<CardGroup cols={2}>
+  <Card title="Compaction concurrent races" href="/roadmap/known-issues/postmortems/gateway/compaction-concurrent-races">
+    Two parallel compactions could tangle a session's history. An in-process promise cache now dedupes them.
+  </Card>
+  <Card title="Compaction lossy second pass" href="/roadmap/known-issues/postmortems/gateway/compaction-lossy-second-pass">
+    Re-compacting a summary dropped content. The second pass assumed the input was raw, not already-compacted.
+  </Card>
+  <Card title="Compaction mid-turn cut" href="/roadmap/known-issues/postmortems/gateway/compaction-mid-turn-cut">
+    Compaction could slice between a `tool_use` and its `tool_result`, breaking the LLM's view of the conversation.
+  </Card>
+  <Card title="SpawnReader fiber leak" href="/roadmap/known-issues/postmortems/gateway/spawnreader-fiber-leak">
+    A long-running fiber stayed alive after the request completed. Memory crept up over time.
+  </Card>
+  <Card title="SSE cross-contamination" href="/roadmap/known-issues/postmortems/gateway/sse-cross-contamination">
+    Two sessions could see each other's SSE events through a shared pubsub filter.
+  </Card>
+  <Card title="Timing-unsafe token compare" href="/roadmap/known-issues/postmortems/gateway/timing-unsafe-token-compare">
+    A plain `==` on secret tokens opened a small timing side-channel. Fixed with a constant-time compare.
+  </Card>
+</CardGroup>
+
+---
+
+## SDKs and Frontend
+
+Nothing yet. When the TypeScript SDK's review pass lands and ships fixes worth remembering, they'll appear under `postmortems/sdk/`. Same for the frontend.
+
+---
+
+## Why this archive exists
+
+A few beliefs that led here:
+
+- **Commit messages carry the tactical detail of a fix.** They're good at "what changed." They're bad at "what was the thinking that let this slip through."
+- **GitHub Issues are the source of truth for status** — open, closed, owned, milestoned. They're bad at "what did we actually learn."
+- **This archive is the source of truth for lessons.** Every file names the pattern, every file lists other places the same shape could hide. A pattern named once prevents the next occurrence.
+
+If you're a new contributor, reading these is one of the faster ways to get up to speed on how this codebase fails. More useful than skimming random files in the main branch, because these have context you can't see from the current state of the code.
