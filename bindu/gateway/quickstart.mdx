@@ -1,0 +1,282 @@
+---
+title: "Hello, Gateway"
+description: "Seven steps — one question, one agent, one streaming response."
+---
+
+This chapter has seven steps. Follow them in order.
+
+---
+
+## Step 1 — What you need
+
+You need three things before starting. You may already have them; skim and decide.
+
+<CardGroup cols={3}>
+  <Card title="Node.js 22+" icon="node-js">
+    The gateway is TypeScript; we run it with `tsx`, no separate build step.
+  </Card>
+  <Card title="OpenRouter API key" icon="key">
+    Paid proxy to dozens of models. The gateway uses it for the planner LLM.
+  </Card>
+  <Card title="Supabase project" icon="database">
+    Hosted Postgres (free tier). Stores conversation history between turns.
+  </Card>
+</CardGroup>
+
+<AccordionGroup>
+  <Accordion title="Checking Node" icon="terminal">
+    ```bash
+    node --version    # should print v22.x or higher
+    ```
+  </Accordion>
+  <Accordion title="Getting an OpenRouter key" icon="key">
+    Sign up at [openrouter.ai](https://openrouter.ai), add a few dollars of credit, and copy the key from the *API* section. It looks like `sk-or-v1-<long random string>`.
+  </Accordion>
+  <Accordion title="Getting Supabase credentials" icon="database">
+    Create a project at [supabase.com](https://supabase.com), then grab two values from *Project Settings → API*:
+
+    - **Project URL** (looks like `https://abcdef.supabase.co`)
+    - **Service role key** (starts with `eyJ...`, this is sensitive — don't paste it in chat apps).
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Step 2 — Get the code and install
+
+```bash
+git clone https://github.com/GetBindu/Bindu
+cd Bindu
+
+# Python side — runs the small sample agents we'll call
+uv sync --dev --extra agents
+
+# TypeScript side — runs the gateway
+cd gateway
+npm install
+cd ..
+```
+
+<Tip>
+The `uv sync` line uses [uv](https://github.com/astral-sh/uv), a fast Python package manager. If you don't have it:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+</Tip>
+
+---
+
+## Step 3 — Apply the database schema
+
+The gateway expects two tables in your Supabase project. From the Supabase web UI, go to **SQL Editor**, then run the two files in order:
+
+<Steps>
+  <Step title="Run the initial migration">
+    `gateway/migrations/001_init.sql`
+  </Step>
+  <Step title="Run the compaction revert migration">
+    `gateway/migrations/002_compaction_revert.sql`
+  </Step>
+</Steps>
+
+These create `gateway_sessions`, `gateway_messages`, and `gateway_tasks` tables with row-level security policies appropriate for a service-role caller. You won't edit these tables directly — the gateway reads and writes them.
+
+---
+
+## Step 4 — Configure the gateway
+
+Create `gateway/.env.local` from the template:
+
+```bash
+cp gateway/.env.example gateway/.env.local
+```
+
+Open it in an editor. Fill in:
+
+```bash gateway/.env.local
+# Supabase (session store)
+SUPABASE_URL=https://<your-project-id>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<your service role key, starts with "eyJ...">
+
+# One bearer token the caller must send to talk to the gateway.
+# Generate a strong one:
+#   openssl rand -base64 32 | tr -d '=' | tr '+/' '-_'
+# Paste the output here:
+GATEWAY_API_KEY=<paste generated token>
+
+# The planner AI
+OPENROUTER_API_KEY=sk-or-v1-<your key>
+
+# Gateway listens here
+GATEWAY_PORT=3774
+GATEWAY_HOSTNAME=0.0.0.0
+```
+
+And `examples/.env` (used by the sample Python agents — the file already exists, you just add the key):
+
+```bash examples/.env
+OPENROUTER_API_KEY=sk-or-v1-<same key>
+```
+
+<Note>
+**What's a "bearer token"?**
+
+Think of `GATEWAY_API_KEY` like the password on a movie ticket booth. Whoever holds this string can ask the gateway to do work on their behalf. The gateway checks it on every request by hashing both sides and comparing the hashes in constant time (so neither a timing nor a length attack can recover the token). Don't paste it into chat apps or commit it to a public repo. Rotate it when you suspect it leaked.
+</Note>
+
+---
+
+## Step 5 — Start one agent
+
+Open a terminal. Start the joke agent — it's one Python file that listens on port 3773 and answers with jokes:
+
+```bash
+python3 examples/gateway_test_fleet/joke_agent.py
+```
+
+You'll see output like:
+
+```
+[joke_agent] starting on http://0.0.0.0:3773
+[joke_agent] DID: did:bindu:...
+[joke_agent] ready.
+```
+
+Leave that terminal running.
+
+---
+
+## Step 6 — Start the gateway
+
+In a **second** terminal:
+
+```bash
+cd gateway
+npm run dev
+```
+
+Expected output:
+
+```
+[bindu-gateway] no DID identity configured (set BINDU_GATEWAY_DID_SEED...)
+[bindu-gateway] listening on http://0.0.0.0:3774
+[bindu-gateway] session mode: stateful
+```
+
+<Info>
+The *"no DID identity configured"* line is fine for now. The [DID signing chapter](/bindu/gateway/identity) turns on cryptographic signing. Leave this terminal running too.
+</Info>
+
+---
+
+## Step 7 — Ask a question
+
+In a **third** terminal, load your gateway token into the shell so you don't have to copy-paste it every time:
+
+```bash
+set -a && source gateway/.env.local && set +a
+```
+
+Now send the request:
+
+```bash
+curl -N http://localhost:3774/plan \
+  -H "Authorization: Bearer ${GATEWAY_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Tell me a joke about databases.",
+    "agents": [
+      {
+        "name": "joke",
+        "endpoint": "http://localhost:3773",
+        "auth": { "type": "none" },
+        "skills": [{ "id": "tell_joke", "description": "Tell a joke" }]
+      }
+    ]
+  }'
+```
+
+<Tip>
+The `-N` flag tells curl not to buffer — you'll see output appear one line at a time over about 5 seconds.
+</Tip>
+
+Expected stream:
+
+```
+event: session
+data: {"session_id":"s_01H...","external_session_id":null,"created":true}
+
+event: plan
+data: {"plan_id":"m_01H...","session_id":"s_01H..."}
+
+event: task.started
+data: {"task_id":"call_01H...","agent":"joke","skill":"tell_joke","input":{"input":"Tell me a joke about databases."}}
+
+event: task.artifact
+data: {"task_id":"call_01H...","content":"<remote_content agent=\"joke\" verified=\"unknown\">Why did the database admin break up? Because they had too many relationships!</remote_content>"}
+
+event: task.finished
+data: {"task_id":"call_01H...","state":"completed"}
+
+event: text.delta
+data: {"session_id":"s_01H...","part_id":"p_01H...","delta":"Here"}
+
+event: text.delta
+data: {"session_id":"s_01H...","part_id":"p_01H...","delta":"'s a joke..."}
+... (many more deltas) ...
+
+event: final
+data: {"session_id":"s_01H...","stop_reason":"stop","usage":{"inputTokens":1130,"outputTokens":52,"totalTokens":1182,"cachedInputTokens":0}}
+
+event: done
+data: {}
+```
+
+**You made a plan.** 🎉
+
+---
+
+## Reading the output line by line
+
+That format is called **Server-Sent Events** (SSE). It's plain HTTP, but the server keeps the connection open and writes events one at a time instead of sending one big response at the end. Two parts per event: a label (`event: session`) and a JSON payload (`data: {...}`).
+
+What each event means, in the order they arrived:
+
+| # | Event | What it means |
+|---|---|---|
+| 1 | `session` | The gateway opened a conversation. `session_id` is the unique handle; you can pass it back later to resume. |
+| 2 | `plan` | The planner started its first turn. |
+| 3 | `task.started` | The planner decided to call the joke agent. `input: {input: "..."}` is what it's sending. |
+| 4 | `task.artifact` | The agent replied. The text inside `<remote_content>` is the real answer. That envelope is there so the planner (and you) remember this is *untrusted* data. |
+| 5 | `task.finished` | That call is complete. |
+| 6 | `text.delta` (many) | The planner is now writing its own final answer, streamed a word or two at a time. Concatenate them in order (they all share a `part_id`). |
+| 7 | `final` | Done. `stop_reason: "stop"` means "natural end". `usage` reports token counts for billing. |
+| 8 | `done` | Last event. Close the connection. |
+
+---
+
+## What's actually running
+
+You now have three things talking to each other:
+
+```
+┌─────────────┐   bearer-auth POST /plan   ┌────────────────────┐
+│   curl      │ ─────────────────────────▶ │  Bindu Gateway     │
+│             │ ◀───  SSE event stream ─── │  port 3774         │
+└─────────────┘                             │  (planner LLM ───▶ OpenRouter)
+                                            │  (sessions ─────▶ Supabase)
+                                            └──┬─────────────────┘
+                                               │ A2A (JSON-RPC)
+                                               ▼
+                                            ┌──────────────────┐
+                                            │ joke_agent.py    │
+                                            │ port 3773        │
+                                            └──────────────────┘
+```
+
+<Tip>
+The gateway is a **coordinator**. It doesn't answer the question itself; it picks an agent, sends the question, gets the reply, writes a final summary using its own planner LLM.
+</Tip>
+
+If this is the moment the idea clicks — great. Next we'll add a second agent so the gateway has a real choice to make: **[Adding a second agent →](/bindu/gateway/multi-agent)**

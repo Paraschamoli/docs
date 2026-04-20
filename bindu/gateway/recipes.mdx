@@ -1,0 +1,230 @@
+---
+title: "Recipes — Teaching Patterns"
+description: "Write a playbook once in plain markdown. The planner lazy-loads it when it recognizes a match."
+---
+
+The three-agent chain from the [previous chapter](/bindu/gateway/multi-agent) worked because the planner figured the plan out from scratch. That's fine once — but let's say your team keeps asking the same class of question:
+
+> *"Research this, compute some percentage of it, write a poem about the result."*
+
+Every plan the planner re-derives the same steps. You pay for the LLM time every time.
+
+What if you could write the plan down *once*, in plain markdown, and have the planner load it on demand when it recognizes a match?
+
+That's a **recipe**.
+
+---
+
+## The core idea: progressive disclosure
+
+You could try solving this by dumping a big *"how to coordinate these agents"* paragraph into the planner's system prompt. Fine for one pattern. Doesn't scale — after 20 patterns, your system prompt is 20,000 tokens and the planner is paying to read it all on every request, even the ones that don't need any of them.
+
+<Tip>
+Recipes fix this with a technique called **progressive disclosure**. At every turn the planner sees:
+
+- The *name* and *one-line description* of every recipe — cheap, a few hundred tokens even for dozens of recipes.
+- A tool called `load_recipe({name})` in its toolbox.
+
+Only when the planner recognizes a match does it call `load_recipe`. The tool's reply is the full recipe body — typically a 2–3 KB markdown playbook — injected into the conversation. The planner then follows the body for the rest of the turn.
+</Tip>
+
+You paid for the body's tokens exactly once per plan, and only when the recipe was actually relevant.
+
+---
+
+## Your first recipe
+
+Let's write one. Create a file at `gateway/recipes/research-math-poem/RECIPE.md`:
+
+```markdown gateway/recipes/research-math-poem/RECIPE.md
+---
+name: research-math-poem
+description: Research a factual number, compute a percentage of it, and write a short poem about the result. Load when the user asks a three-part question combining research, arithmetic, and creative writing.
+tags: [research, math, creative]
+triggers: [research and compute, percentage poem, population percent]
+---
+
+# Recipe: research-math-poem
+
+Use this when the user's question has three distinct phases:
+
+  1. A factual lookup (population, revenue, distance, etc.)
+  2. A percentage or fraction applied to that number
+  3. A short creative response about the result
+
+## Flow
+
+1. **Research.** Call `call_research_web_research` with the user's exact
+   factual question. Don't translate or summarize it.
+2. **Extract the number.** In your own reasoning (not as a tool call),
+   pull the headline figure from the research reply. Prefer the
+   *headline* number the user asked about, not incidental figures.
+3. **Compute.** Call `call_math_solve` with the computation stated
+   explicitly: "Compute 0.5% of 36,950,000". Don't ask the math agent
+   to interpret — give it the exact expression.
+4. **Create.** Call `call_poet_write_poem` with the computed number
+   and the user's creative framing (line count, mood, subject).
+5. **Respond.** Write a final message that shows all three steps
+   briefly and ends with the poem.
+
+## Constraints
+
+- **Do not parallelize** the calls. The math depends on the research;
+  the poem depends on the math.
+- **Do not invent the number** if research returns ambiguous output.
+  Ask the user to clarify which population/revenue/etc. they mean.
+- **Do not skip the poem** if the user asked for one. If
+  `call_poet_write_poem` fails, surface the failure; don't silently
+  produce prose.
+```
+
+---
+
+## Watching it load
+
+Restart the gateway (Ctrl-C in its terminal, `npm run dev` again). You'll see a new log line on boot:
+
+```
+[recipe] loaded 3 recipes
+```
+
+<Info>
+Three because two recipes shipped with the gateway by default — `multi-agent-research` and `payment-required-flow` — plus your new one.
+</Info>
+
+Now fire the same three-agent question from the previous chapter. In the SSE stream you should see an extra event early on:
+
+```
+event: task.started
+data: {"task_id":"call_xyz...","agent":"load_recipe","skill":"","input":{"name":"research-math-poem"}}
+
+event: task.artifact
+data: {"task_id":"call_xyz...","content":"<recipe_content name=\"research-math-poem\">\n# Recipe: research-math-poem\n\nUse this when the user's question has three distinct phases: ...</recipe_content>"}
+
+event: task.finished
+data: {"task_id":"call_xyz...","state":"completed"}
+```
+
+The planner recognized the match, called `load_recipe`, and now has your playbook in context. The rest of the plan — research, math, poet — follows the recipe.
+
+---
+
+## Does it actually change behavior?
+
+Sometimes yes, sometimes no. The planner was already good at this class of question; the recipe mostly *pins the behavior* (forces the specific tool order, specific call shapes) rather than enabling something new.
+
+Where recipes shine:
+
+<CardGroup cols={3}>
+  <Card title="Edge-case handling" icon="bug">
+    A recipe that says *"if you see `state: payment-required`, surface the payment URL to the user and STOP — do not retry"* is a policy the planner wouldn't invent on its own.
+  </Card>
+  <Card title="Tenant-specific rules" icon="building">
+    A recipe visible only to a certain agent can encode rules like *"always include a disclaimer"* or *"always call the compliance agent first."*
+  </Card>
+  <Card title="Multi-hop orchestration" icon="diagram-project">
+    A recipe describing a 5-step workflow is a document your team can review, version, and reason about. Inline planner reasoning isn't.
+  </Card>
+</CardGroup>
+
+<Tip>
+See `gateway/recipes/payment-required-flow/RECIPE.md` in the repo for a real-world example of edge-case handling.
+</Tip>
+
+---
+
+## Recipe layouts
+
+Two supported shapes:
+
+<Tabs>
+  <Tab title="Flat">
+    ```
+    gateway/recipes/foo.md
+    ```
+
+    A single markdown file. No bundled siblings. Good for short playbooks.
+  </Tab>
+  <Tab title="Bundled">
+    ```
+    gateway/recipes/bar/RECIPE.md
+    gateway/recipes/bar/scripts/run.sh
+    gateway/recipes/bar/reference/notes.md
+    ```
+
+    A directory with a `RECIPE.md` plus sibling files. Useful when the recipe refers to reference material or needs ship-alongside scripts. Siblings under `scripts/` and `reference/` are surfaced to the planner automatically.
+  </Tab>
+</Tabs>
+
+<Note>
+When the planner loads a bundled recipe, the `load_recipe` tool result includes a `<recipe_files>` listing of the sibling files (capped at 10 for token sanity). The planner can refer to them by relative path in its response or follow instructions in the body like *"run `scripts/validate.sh` before responding."*
+</Note>
+
+---
+
+## Frontmatter reference
+
+```yaml
+---
+name: unique-identifier          # required; cannot start with "call_"
+description: one-line summary    # required (non-empty) — this is the hook
+tags: [tag1, tag2]               # optional; surfaced in verbose listings
+triggers: [phrase, phrase]       # optional; planner hints (not enforced)
+---
+```
+
+Two rules the loader enforces:
+
+<AccordionGroup>
+  <Accordion title="Unique `name`" icon="fingerprint">
+    Duplicate recipe names cause boot to fail with a clear error — silent precedence would make behavior depend on filesystem order.
+  </Accordion>
+  <Accordion title="No `call_` prefix" icon="circle-exclamation">
+    Planner tool ids look like `call_agent_skill`; a recipe named `call_anything` would visually collide in the `load_recipe` tool description. Rejected at load time.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Per-agent recipe visibility
+
+The gateway's agent configs (in `gateway/agents/*.md`) have a `permission:` block. You can use it to scope recipes:
+
+```yaml gateway/agents/planner.md
+permission:
+  recipe:
+    "internal-*": "deny"      # this agent can't load recipes matching "internal-*"
+    "*": "allow"              # everything else is fine
+```
+
+<Info>
+The planner only sees (and can only load) recipes matching its allowed patterns. Default is `allow` — agents with no `recipe:` rules see everything.
+</Info>
+
+---
+
+## The full authoring loop
+
+<Steps>
+  <Step title="Create the recipe file.">
+    Either `gateway/recipes/<name>.md` or `gateway/recipes/<name>/RECIPE.md`.
+  </Step>
+  <Step title="Restart the gateway.">
+    The loader scans on boot (no hot reload yet).
+  </Step>
+  <Step title="Fire a /plan request that should trigger the recipe.">
+    Use the exact phrasing your users will use.
+  </Step>
+  <Step title="Read the SSE stream for a load_recipe tool call.">
+    That's the planner saying *"I recognized this pattern."*
+  </Step>
+  <Step title="If the planner didn't load it — tighten the description.">
+    That's what the planner reads. Add specific keywords the user question likely contains.
+  </Step>
+</Steps>
+
+<Check>
+Recipes are the single highest-leverage operator tool in the gateway. Spend an afternoon writing five for your common question shapes and you'll notice your planner's behavior firming up across the board.
+</Check>
+
+Next: give the gateway a cryptographic identity and start signing outbound calls. **[DID signing →](/bindu/gateway/identity)**

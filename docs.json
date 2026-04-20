@@ -110,6 +110,17 @@
                 ]
               },
               {
+                "group": "Gateway",
+                "pages": [
+                  "bindu/gateway/overview",
+                  "bindu/gateway/quickstart",
+                  "bindu/gateway/multi-agent",
+                  "bindu/gateway/recipes",
+                  "bindu/gateway/identity",
+                  "bindu/gateway/production"
+                ]
+              },
+              {
                 "group": "The Multi-Language Sidecar",
                 "pages": [
                   "bindu/grpc/overview",
@@ -217,6 +228,18 @@
           }
         ],
         "openapi": "/openapi.yaml"
+      },
+      {
+        "tab": "Gateway API",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "gateway-api/introduction"
+            ]
+          }
+        ],
+        "openapi": "/gateway-openapi.yaml"
       },
       {
         "tab": "Roadmap & Issues",
