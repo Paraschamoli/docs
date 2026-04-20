@@ -1,0 +1,146 @@
+---
+title: "Gateway API"
+description: "The external HTTP surface of the Bindu Gateway — one endpoint, streaming SSE, many agents behind it."
+---
+
+## Overview
+
+The **Bindu Gateway** sits between an external system (your app, a custom frontend, another service) and one or more **Bindu A2A agents**. It takes a user question plus an agent catalog and returns a streaming plan: the gateway's planner LLM decomposes the request, invokes A2A agents via the polling protocol, and emits Server-Sent Events in real time.
+
+<Note>
+This is **distinct** from the per-agent [Bindu Agent API](/api/introduction), which describes what a single `bindufy()`-built agent exposes. This spec documents the **gateway** — the orchestrator sitting one layer up.
+</Note>
+
+New to the gateway? Read the [narrative walkthrough](/bindu/gateway/overview) first — it takes you from "no idea what this is" to signing production requests in about 45 minutes.
+
+---
+
+## Base URL
+
+<CodeGroup>
+```bash Local development
+http://localhost:3774
+```
+
+```bash Production
+https://your-gateway.example.com
+```
+</CodeGroup>
+
+---
+
+## Mental model: one endpoint, many turns
+
+Every orchestration goes through `POST /plan`. Inside, the planner LLM runs an agentic loop — it calls A2A agents as tools, the results feed back into the LLM, and the loop continues up to `max_steps` or until the plan resolves.
+
+Two auxiliary endpoints support health probing and DID-based peer authentication:
+
+| Path | Purpose |
+|---|---|
+| `POST /plan` | Open a new plan or resume an existing session. Streams SSE. |
+| `GET /health` | Liveness + cheap config probe. |
+| `GET /.well-known/did.json` | The gateway's own DID document. Only present when a DID identity is configured. |
+
+---
+
+## Request shape
+
+A `/plan` request carries three things:
+
+<CardGroup cols={3}>
+  <Card title="question" icon="comment">
+    The user's natural-language input.
+  </Card>
+  <Card title="agents[]" icon="network-wired">
+    The catalog of A2A peers the planner may call — each with endpoint, auth, and skills. The gateway does **not** host agents.
+  </Card>
+  <Card title="preferences + session_id" icon="sliders">
+    Caps and continuation handles. Both optional.
+  </Card>
+</CardGroup>
+
+<Info>
+The shape is stable and additive. Unknown top-level keys are accepted (forward-compatible `.passthrough()`), but `preferences` keys are strict **snake_case**. Clients sending camelCase preferences will have them silently dropped.
+</Info>
+
+---
+
+## Response shape — Server-Sent Events
+
+The happy path returns `200 OK` with `Content-Type: text/event-stream`.
+
+Errors surface in three ways depending on when they occur:
+
+<AccordionGroup>
+  <Accordion title="Before streaming starts" icon="triangle-exclamation">
+    Auth failure, invalid JSON, malformed request, session creation failure:
+
+    `401` / `400` / `500` with a JSON `{ error, detail? }` body.
+  </Accordion>
+  <Accordion title="During streaming" icon="radio">
+    Planner or tool failure: a single `event: error` SSE frame, followed by `event: done`.
+  </Accordion>
+  <Accordion title="Never silent" icon="check">
+    Every successful plan closes with `event: done` (empty payload). Consumers should treat the absence of `done` as an incomplete stream.
+  </Accordion>
+</AccordionGroup>
+
+### SSE events
+
+Events emitted during a plan, in typical order:
+
+| Event | When | Purpose |
+|---|---|---|
+| `session` | Once, before the plan starts | Carries session identifiers so clients can correlate. |
+| `plan` | Once, when the planner starts its first turn | Announces `plan_id`. |
+| `text.delta` | Many (streaming planner output) | Incremental text chunks for the final assistant message. |
+| `task.started` | Per A2A tool call | The planner decided to call a peer agent. |
+| `task.artifact` | Per A2A tool call | The peer returned an artifact, wrapped in a `<remote_content>` envelope. |
+| `task.finished` | Per A2A tool call | Terminal state of the peer call. |
+| `final` | Once, at the end | Stop reason + usage counters. |
+| `error` | Only on failure during streaming | Human-readable message. |
+| `done` | Always last | Empty marker so clients can close cleanly. |
+
+---
+
+## Recipes (internal)
+
+The gateway supports **progressive-disclosure recipes** — markdown playbooks the planner lazy-loads when a task matches (e.g., `multi-agent-research`, `payment-required-flow`). Recipes are operator-authored and not part of this HTTP API surface: they live in `gateway/recipes/` and are injected automatically into the planner's system prompt as metadata, with the body fetched on demand via an internal `load_recipe` tool.
+
+<Note>
+You cannot upload, list, or invoke recipes via the HTTP API; they influence the planner's behavior transparently. See the [Recipes chapter](/bindu/gateway/recipes) for authoring details.
+</Note>
+
+---
+
+## A2A protocol pass-through
+
+The gateway speaks A2A (JSON-RPC 2.0 over HTTP) to every peer in `agents[]` — `message/send` + `tasks/get` polling, with DID signature verification when configured.
+
+A2A task states (`submitted`, `working`, `input-required`, `auth-required`, `payment-required`, `completed`, `failed`, `canceled`) flow through to the planner:
+
+- **Terminal states** become `task.finished` events.
+- **Non-terminal states** can surface as planner text or trigger recipe-based handling (e.g., surfacing a `payment-required` URL to the user).
+
+<Tip>
+See the [Bindu Agent API spec](/api/introduction) for the full A2A protocol surface.
+</Tip>
+
+---
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Gateway walkthrough" icon="book-open" href="/bindu/gateway/overview">
+    The 45-minute end-to-end story.
+  </Card>
+  <Card title="Endpoint reference" icon="code">
+    Full schemas for `/plan`, `/health`, `/.well-known/did.json` are in the left sidebar under this tab.
+  </Card>
+  <Card title="DIDs explained" icon="shield-halved" href="/bindu/learn/did/overview">
+    Under the hood of `did_signed` peer auth.
+  </Card>
+  <Card title="Recipes" icon="book" href="/bindu/gateway/recipes">
+    Teach the planner reusable patterns.
+  </Card>
+</CardGroup>

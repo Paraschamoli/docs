@@ -1,0 +1,179 @@
+---
+title: "Adding a Second Agent"
+description: "Three agents, one question — the planner picks the order, extracts the right number at each step, and chains them."
+---
+
+Stop the joke agent (Ctrl-C in its terminal). We'll start both it and four more using a helper script:
+
+```bash
+./examples/gateway_test_fleet/start_fleet.sh
+```
+
+Expected output:
+
+```
+  [joke_agent]      started, pid=64945
+  [math_agent]      started, pid=64958
+  [poet_agent]      started, pid=64969
+  [research_agent]  started, pid=64980
+  [faq_agent]       started, pid=64993
+```
+
+Five agents now, each on its own port:
+
+| Agent | Port | Does |
+|---|---|---|
+| `joke_agent` | 3773 | Tells jokes |
+| `math_agent` | 3775 | Solves math problems step-by-step |
+| `poet_agent` | 3776 | Writes short poems |
+| `research_agent` | 3777 | Web search + summarize a factual question |
+| `faq_agent` | 3778 | Answers from a canned FAQ |
+
+Each is ~60 lines of Python. Open any one — say `joke_agent.py` — and you'll see a small configuration that wires a language model (`openai/gpt-4o-mini`) to a few lines of instructions (*"tell jokes, refuse other requests"*). Narrow scope on purpose so mistakes are visible.
+
+<Info>
+The gateway is already running from the [previous chapter](/bindu/gateway/quickstart); don't restart it.
+</Info>
+
+---
+
+## A three-agent question
+
+Paste this into your curl terminal. It asks something that genuinely needs three agents to answer:
+
+```bash
+curl -N http://localhost:3774/plan \
+  -H "Authorization: Bearer ${GATEWAY_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "First research the current approximate population of Tokyo. Then compute what exactly 0.5% of that population is. Finally write a 4-line poem celebrating that number of people.",
+    "agents": [
+      {
+        "name": "research", "endpoint": "http://localhost:3777",
+        "auth": { "type": "none" },
+        "skills": [{ "id": "web_research", "description": "Web search and summarize a factual question" }]
+      },
+      {
+        "name": "math", "endpoint": "http://localhost:3775",
+        "auth": { "type": "none" },
+        "skills": [{ "id": "solve", "description": "Solve math problems step-by-step" }]
+      },
+      {
+        "name": "poet", "endpoint": "http://localhost:3776",
+        "auth": { "type": "none" },
+        "skills": [{ "id": "write_poem", "description": "Write a short poem" }]
+      }
+    ]
+  }'
+```
+
+This takes around 15 seconds and produces three `task.started` events, in order — research first, then math, then poet. Abbreviated output from a real run:
+
+```
+task.started  → research called with "What is the current population of Tokyo?"
+task.artifact → "Tokyo's metropolitan area has approximately 36.95 million people..."
+task.finished → completed
+
+task.started  → math called with "Compute 0.5% of 36,950,000"
+task.artifact → "0.005 × 36,950,000 = 184,750"
+task.finished → completed
+
+task.started  → poet called with "Write a 4-line poem about 184,750 people"
+task.artifact → "In Tokyo's heart, where dreams align, / 184,750 souls brightly shine, / ..."
+task.finished → completed
+
+text.delta    → "Step 1 — Population: 36.95 million..."
+...
+final
+done
+```
+
+<Tip>
+**The gateway chose the order, extracted the right number from each reply, and passed it to the next agent — all without you writing a single line of glue code.** That's the whole point.
+</Tip>
+
+---
+
+## How it chose
+
+The planner saw three tools available (one per agent-skill combination):
+
+| Tool name | Description |
+|---|---|
+| `call_research_web_research` | Web search and summarize a factual question |
+| `call_math_solve` | Solve math problems step-by-step |
+| `call_poet_write_poem` | Write a short poem |
+
+<Note>
+**Where do those tool names come from?** The gateway builds them automatically from the `name` and `skills[].id` fields in your request: `call_<agent-name>_<skill-id>`.
+</Note>
+
+Then the planner read the question: *"First research… Then compute… Finally write a 4-line poem…"* The word *"First"* strongly suggests research is step 1, and the LLM picked `call_research_web_research`. It waited for the reply, re-read the question with the new context, decided the next step was math, picked `call_math_solve`, and so on.
+
+All of this happens inside one HTTP request. The SSE stream is the gateway narrating what the planner decided.
+
+---
+
+## What if you added a fourth agent it doesn't need?
+
+Try it. Add the joke agent to the catalog above and re-run:
+
+```json
+{
+  "name": "joke", "endpoint": "http://localhost:3773",
+  "auth": { "type": "none" },
+  "skills": [{ "id": "tell_joke", "description": "Tell a joke" }]
+}
+```
+
+The SSE output is the same — three `task.started` events for research, math, poet. The joke tool sat there unused.
+
+<Check>
+**The planner only calls what it needs.** This matters in production: you can hand the gateway a catalog of 50 agents, and only the 2 or 3 relevant to a given question will actually be invoked.
+</Check>
+
+---
+
+## What is the planner, actually?
+
+Inside the gateway, there's a single agent configuration file called `gateway/agents/planner.md`. It's a markdown file with some frontmatter:
+
+```yaml
+---
+name: planner
+model: openrouter/anthropic/claude-sonnet-4.6
+steps: 10
+permission:
+  ...
+---
+
+# System prompt body — the planner's own instructions.
+```
+
+The body is the system prompt. On each `/plan` request, the gateway does this:
+
+<Steps>
+  <Step title="Read the planner's system prompt.">
+    Loaded fresh from disk each request — no cache.
+  </Step>
+  <Step title="Add the user's question as a new user message.">
+    Plus any history from the session, if resuming.
+  </Step>
+  <Step title="Build the tool list from your agents[] catalog.">
+    One tool per `agent.skill` pair.
+  </Step>
+  <Step title="Hand all of that to OpenRouter with streamText().">
+    Claude (or whatever model you picked) drives the loop.
+  </Step>
+  <Step title="Stream the output back to you as SSE.">
+    Text deltas + tool calls + tool results.
+  </Step>
+</Steps>
+
+Inside OpenRouter, Claude runs its agentic loop — text → tool call → tool result → more text → another tool call → final text. The gateway's job is just to execute the tool calls against your real agents and plumb the results back.
+
+<Tip>
+Open `gateway/agents/planner.md` and read the body. That's the instructions the coordinator AI follows. You can edit it and the next plan will see the changes — the file is loaded on every request, not cached.
+</Tip>
+
+Next up: teach the planner reusable patterns without editing its system prompt. **[Recipes →](/bindu/gateway/recipes)**
