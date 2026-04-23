@@ -965,74 +965,8 @@ paths:
                   - name: "DID"
                     version: "1.0.0"
                     description: "Ed25519-backed cryptographic identity"
-    head:
-      tags: [Agent Discovery]
-      summary: HEAD the agent card
-      description: |
-        Same route as `GET`, but the server drops the response body (per
-        HTTP semantics). Useful as a lightweight liveness probe — you
-        get the status code without paying for the JSON payload.
-      security: []
-      responses:
-        '200':
-          description: Agent is reachable
-    options:
-      tags: [Agent Discovery]
-      summary: CORS preflight
-      description: |
-        Handled by the CORS middleware when `cors_origins` is configured
-        on the agent. The middleware returns the usual `Access-Control-*`
-        headers so browser clients on allowed origins can make the
-        follow-up `GET`.
-      security: []
-      responses:
-        '204':
-          description: CORS preflight OK
-          headers:
-            Access-Control-Allow-Origin:
-              schema:
-                type: string
-            Access-Control-Allow-Methods:
-              schema:
-                type: string
-                example: "GET, HEAD, OPTIONS"
 
   /did/resolve:
-    get:
-      tags: [DID Resolution]
-      summary: Resolve a DID (via query string)
-      description: |
-        Return the DID Document for a `did:bindu:...` identifier. The
-        document contains the agent's public key, which peers use to
-        verify signatures on artifacts and requests.
-      security: []
-      parameters:
-        - name: did
-          in: query
-          required: true
-          description: Full DID string
-          schema:
-            type: string
-            pattern: "^did:bindu:.+"
-          example: "did:bindu:example_at_getbindu_com:example-agent:a1b2c3d4-e5f6-7890-abcd-1234567890ab"
-      responses:
-        '200':
-          description: DID Document
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DidDocument'
-        '404':
-          description: DID not found
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error: { type: string }
-              example:
-                error: "DID not found"
-
     post:
       tags: [DID Resolution]
       summary: Resolve a DID (via JSON body)
@@ -1060,6 +994,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DidDocument'
+              example:
+                "@context":
+                  - "https://www.w3.org/ns/did/v1"
+                  - "https://getbindu.com/ns/v1"
+                id: "did:bindu:bindu_builder_at_getbindu_com:agent:8faa865e-d8ec-8b2f-f000-598e8e463d60"
+                created: "2026-04-23T09:32:55.168183+00:00"
+                authentication:
+                  - id: "did:bindu:bindu_builder_at_getbindu_com:agent:8faa865e-d8ec-8b2f-f000-598e8e463d60#key-1"
+                    type: "Ed25519VerificationKey2020"
+                    controller: "did:bindu:bindu_builder_at_getbindu_com:medical_agent:8faa865e-d8ec-8b2f-f000-598e8e463d60"
+                    publicKeyBase58: "G53goNNEDqaHLMJWzdHvnEBG7xDd7jJjjhB3FUwtzWnn"
         '400':
           description: Missing or malformed `did` field
         '404':
@@ -1311,14 +1256,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
               example:
-                status: "healthy"
-                checks:
-                  storage: "ok"
-                  scheduler: "ok"
-                  bus: "ok"
-                  grpc: "ok"
-                  extensions: "ok"
-                timestamp: "2026-04-19T18:00:00+00:00"
+                version: "2026.12.6.dev224+gbf39a0530"
+                health: "healthy"
+                runtime:
+                  storage_backend: "InMemoryStorage"
+                  scheduler_backend: "InMemoryScheduler"
+                  task_manager_running: true
+                  strict_ready: true
+                application:
+                  penguin_id: "8faa865e-d8ec-8b2f-f000-598e8e463d60"
+                  agent_did: "did:bindu:bindu_builder_at_getbindu_com:agent:8faa865e-d8ec-8b2f-f000-598e8e463d60"
+                system:
+                  python_version: "3.12.9"
+                  platform: "Windows"
+                  environment: "development"
+                status: "ok"
+                ready: true
+                uptime_seconds: 541.0
         '503':
           description: Degraded — at least one critical component failing
           content:
@@ -1357,12 +1311,37 @@ paths:
               schema:
                 type: string
               example: |
-                # HELP http_requests_total Total HTTP requests.
+                # HELP http_requests_total Total number of HTTP requests
                 # TYPE http_requests_total counter
-                http_requests_total{method="POST",path="/",status="200"} 42
-                # HELP agent_tasks_active Active tasks by state.
+                http_requests_total{method="GET",endpoint="/health",status="200"} 1
+                http_requests_total{method="POST",endpoint="/did/resolve",status="200"} 1
+
+                # HELP http_request_duration_seconds HTTP request latency
+                # TYPE http_request_duration_seconds histogram
+                http_request_duration_seconds_bucket{le="0.1"} 2
+                http_request_duration_seconds_bucket{le="0.5"} 2
+                http_request_duration_seconds_bucket{le="1.0"} 2
+                http_request_duration_seconds_bucket{le="+Inf"} 2
+                http_request_duration_seconds_sum 0.0
+                http_request_duration_seconds_count 2
+
+                # HELP agent_tasks_active Currently active tasks
                 # TYPE agent_tasks_active gauge
-                agent_tasks_active{state="working"} 3
+                agent_tasks_active{agent_id="did:bindu:bindu_builder_at_getbindu_com:agent:8faa865e-d8ec-8b2f-f000-598e8e463d60"} 0
+
+                # HELP http_request_size_bytes HTTP request body size
+                # TYPE http_request_size_bytes summary
+                http_request_size_bytes_sum 109
+                http_request_size_bytes_count 1
+
+                # HELP http_response_size_bytes HTTP response body size
+                # TYPE http_response_size_bytes summary
+                http_response_size_bytes_sum 1054
+                http_response_size_bytes_count 2
+
+                # HELP http_requests_in_flight Current number of HTTP requests being processed
+                # TYPE http_requests_in_flight gauge
+                http_requests_in_flight 0
 
 components:
   securitySchemes:
@@ -2333,16 +2312,60 @@ components:
 
     HealthResponse:
       type: object
-      required: [status, checks, timestamp]
+      required: [version, health, runtime, application, system, status, ready, uptime_seconds]
       properties:
-        status:
+        version:
+          type: string
+          description: "Application version with build information"
+        health:
           type: string
           enum: [healthy, degraded]
-        checks:
+          description: "Overall health status"
+        runtime:
           type: object
-          description: 'Per-component status — "ok" or "error: <reason>".'
-          additionalProperties:
-            type: string
-        timestamp:
+          properties:
+            storage_backend:
+              type: string
+              description: "Storage backend implementation"
+            scheduler_backend:
+              type: string
+              description: "Scheduler backend implementation"
+            task_manager_running:
+              type: boolean
+              description: "Whether the task manager is running"
+            strict_ready:
+              type: boolean
+              description: "Strict readiness mode"
+        application:
+          type: object
+          properties:
+            penguin_id:
+              type: string
+              format: uuid
+              description: "Unique Penguin instance identifier"
+            agent_did:
+              type: string
+              description: "DID of the agent"
+        system:
+          type: object
+          properties:
+            python_version:
+              type: string
+              description: "Python runtime version"
+            platform:
+              type: string
+              description: "Operating system platform"
+            environment:
+              type: string
+              description: "Runtime environment (development/production)"
+        status:
           type: string
-          format: date-time
+          enum: [ok, error]
+          description: "Detailed status"
+        ready:
+          type: boolean
+          description: "Whether the service is ready to accept requests"
+        uptime_seconds:
+          type: number
+          format: float
+          description: "Service uptime in seconds"
