@@ -1,9 +1,9 @@
 ---
 title: "Adding a Second Agent"
-description: "Three agents, one question — the planner picks the order, extracts the right number at each step, and chains them."
+description: "Three agents working on one question - the planner decides the order and passes results between them."
 ---
 
-Stop the joke agent (Ctrl-C in its terminal). We'll start both it and four more using a helper script:
+Stop the joke agent (Ctrl+C in its terminal). We'll start both it and four more using a helper script:
 
 ```bash
 ./examples/gateway_test_fleet/start_fleet.sh
@@ -29,10 +29,10 @@ Five agents now, each on its own port:
 | `research_agent` | 3777 | Web search + summarize a factual question |
 | `faq_agent` | 3778 | Answers from a canned FAQ |
 
-Each is ~60 lines of Python. Open any one — say `joke_agent.py` — and you'll see a small configuration that wires a language model (`openai/gpt-4o-mini`) to a few lines of instructions (*"tell jokes, refuse other requests"*). Narrow scope on purpose so mistakes are visible.
+Each is ~60 lines of Python. Open any one - say `joke_agent.py` - and you'll see a small configuration that wires a language model (`openai/gpt-4o-mini`) to a few lines of instructions (*"tell jokes, refuse other requests"*). Narrow scope on purpose so mistakes are visible.
 
 <Info>
-The gateway is already running from the [previous chapter](/bindu/gateway/quickstart); don't restart it.
+Gateway is already running from the [previous chapter](/bindu/gateway/quickstart); don't restart it.
 </Info>
 
 ---
@@ -67,7 +67,7 @@ curl -N http://localhost:3774/plan \
   }'
 ```
 
-This takes around 15 seconds and produces three `task.started` events, in order — research first, then math, then poet. Abbreviated output from a real run:
+This takes around 15 seconds and produces three `task.started` events, in order - research first, then math, then poet. Abbreviated output from a real run:
 
 ```
 task.started  → research called with "What is the current population of Tokyo?"
@@ -82,14 +82,14 @@ task.started  → poet called with "Write a 4-line poem about 184,750 people"
 task.artifact → "In Tokyo's heart, where dreams align, / 184,750 souls brightly shine, / ..."
 task.finished → completed
 
-text.delta    → "Step 1 — Population: 36.95 million..."
+text.delta    → "Step 1 - Population: 36.95 million..."
 ...
 final
 done
 ```
 
 <Tip>
-**The gateway chose the order, extracted the right number from each reply, and passed it to the next agent — all without you writing a single line of glue code.** That's the whole point.
+**The gateway chose the order, extracted the right number from each reply, and passed it to the next agent - all without you writing a single line of glue code.** That's the whole point.
 </Tip>
 
 ---
@@ -126,7 +126,7 @@ Try it. Add the joke agent to the catalog above and re-run:
 }
 ```
 
-The SSE output is the same — three `task.started` events for research, math, poet. The joke tool sat there unused.
+The SSE output is the same - three `task.started` events for research, math, poet. The joke tool sat there unused.
 
 <Check>
 **The planner only calls what it needs.** This matters in production: you can hand the gateway a catalog of 50 agents, and only the 2 or 3 relevant to a given question will actually be invoked.
@@ -147,14 +147,14 @@ permission:
   ...
 ---
 
-# System prompt body — the planner's own instructions.
+# System prompt body - the planner's own instructions.
 ```
 
 The body is the system prompt. On each `/plan` request, the gateway does this:
 
 <Steps>
   <Step title="Read the planner's system prompt.">
-    Loaded fresh from disk each request — no cache.
+    Loaded fresh from disk each request - no cache.
   </Step>
   <Step title="Add the user's question as a new user message.">
     Plus any history from the session, if resuming.
@@ -170,10 +170,24 @@ The body is the system prompt. On each `/plan` request, the gateway does this:
   </Step>
 </Steps>
 
-Inside OpenRouter, Claude runs its agentic loop — text → tool call → tool result → more text → another tool call → final text. The gateway's job is just to execute the tool calls against your real agents and plumb the results back.
+Inside OpenRouter, Claude runs its agentic loop - text → tool call → tool result → more text → another tool call → final text. The gateway's job is just to execute the tool calls against your real agents and plumb the results back.
 
 <Tip>
-Open `gateway/agents/planner.md` and read the body. That's the instructions the coordinator AI follows. You can edit it and the next plan will see the changes — the file is loaded on every request, not cached.
+Open `gateway/agents/planner.md` and read the body. That's the instructions the coordinator AI follows. You can edit it and the next plan will see the changes - the file is loaded on every request, not cached.
 </Tip>
 
 Next up: teach the planner reusable patterns without editing its system prompt. **[Recipes →](/bindu/gateway/recipes)**
+
+<span className="brand-quote">
+  <img
+    src="/logo/light.svg"
+    alt="Sunflower Logo"
+    width="32"
+    className="clean-icon"
+  />
+
+  <span className="brand-quote-text">
+    Gateway doesn’t run agents randomly -{" "}
+    <span className="brand-quote-highlight">it decides the order and connects their outputs</span>.
+  </span>
+</span>

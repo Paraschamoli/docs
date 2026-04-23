@@ -1,13 +1,13 @@
 ---
-title: "Hello, Gateway"
-description: "Seven steps — one question, one agent, one streaming response."
+title: "Quickstart"
+description: "Seven steps - one question, one agent, one streaming response."
 ---
 
 This chapter has seven steps. Follow them in order.
 
 ---
 
-## Step 1 — What you need
+## Step 1 - What you need
 
 You need three things before starting. You may already have them; skim and decide.
 
@@ -36,22 +36,22 @@ You need three things before starting. You may already have them; skim and decid
     Create a project at [supabase.com](https://supabase.com), then grab two values from *Project Settings → API*:
 
     - **Project URL** (looks like `https://abcdef.supabase.co`)
-    - **Service role key** (starts with `eyJ...`, this is sensitive — don't paste it in chat apps).
+    - **Service role key** (starts with `eyJ...`, this is sensitive - don't paste it in chat apps).
   </Accordion>
 </AccordionGroup>
 
 ---
 
-## Step 2 — Get the code and install
+## Step 2 - Get the code and install
 
 ```bash
 git clone https://github.com/GetBindu/Bindu
 cd Bindu
 
-# Python side — runs the small sample agents we'll call
+# Python side - runs the small sample agents we'll call
 uv sync --dev --extra agents
 
-# TypeScript side — runs the gateway
+# TypeScript side - runs the gateway
 cd gateway
 npm install
 cd ..
@@ -67,7 +67,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ---
 
-## Step 3 — Apply the database schema
+## Step 3 - Apply the database schema
 
 The gateway expects two tables in your Supabase project. From the Supabase web UI, go to **SQL Editor**, then run the two files in order:
 
@@ -80,11 +80,11 @@ The gateway expects two tables in your Supabase project. From the Supabase web U
   </Step>
 </Steps>
 
-These create `gateway_sessions`, `gateway_messages`, and `gateway_tasks` tables with row-level security policies appropriate for a service-role caller. You won't edit these tables directly — the gateway reads and writes them.
+These create `gateway_sessions`, `gateway_messages`, and `gateway_tasks` tables with row-level security policies appropriate for a service-role caller. You won't edit these tables directly - the gateway reads and writes them.
 
 ---
 
-## Step 4 — Configure the gateway
+## Step 4 - Configure the gateway
 
 Create `gateway/.env.local` from the template:
 
@@ -113,7 +113,7 @@ GATEWAY_PORT=3774
 GATEWAY_HOSTNAME=0.0.0.0
 ```
 
-And `examples/.env` (used by the sample Python agents — the file already exists, you just add the key):
+And `examples/.env` (used by the sample Python agents - the file already exists, you just add the key):
 
 ```bash examples/.env
 OPENROUTER_API_KEY=sk-or-v1-<same key>
@@ -127,9 +127,9 @@ Think of `GATEWAY_API_KEY` like the password on a movie ticket booth. Whoever ho
 
 ---
 
-## Step 5 — Start one agent
+## Step 5 - Start one agent
 
-Open a terminal. Start the joke agent — it's one Python file that listens on port 3773 and answers with jokes:
+Open a terminal. Start the joke agent - it's one Python file that listens on port 3773 and answers with jokes:
 
 ```bash
 python3 examples/gateway_test_fleet/joke_agent.py
@@ -147,7 +147,7 @@ Leave that terminal running.
 
 ---
 
-## Step 6 — Start the gateway
+## Step 6 - Start the gateway
 
 In a **second** terminal:
 
@@ -170,7 +170,7 @@ The *"no DID identity configured"* line is fine for now. The [DID signing chapte
 
 ---
 
-## Step 7 — Ask a question
+## Step 7 - Ask a question
 
 In a **third** terminal, load your gateway token into the shell so you don't have to copy-paste it every time:
 
@@ -198,7 +198,7 @@ curl -N http://localhost:3774/plan \
 ```
 
 <Tip>
-The `-N` flag tells curl not to buffer — you'll see output appear one line at a time over about 5 seconds.
+The `-N` flag tells curl not to buffer - you'll see output appear one line at a time over about 5 seconds.
 </Tip>
 
 Expected stream:
@@ -260,23 +260,48 @@ What each event means, in the order they arrived:
 
 You now have three things talking to each other:
 
-```
-┌─────────────┐   bearer-auth POST /plan   ┌────────────────────┐
-│   curl      │ ─────────────────────────▶ │  Bindu Gateway     │
-│             │ ◀───  SSE event stream ─── │  port 3774         │
-└─────────────┘                             │  (planner LLM ───▶ OpenRouter)
-                                            │  (sessions ─────▶ Supabase)
-                                            └──┬─────────────────┘
-                                               │ A2A (JSON-RPC)
-                                               ▼
-                                            ┌──────────────────┐
-                                            │ joke_agent.py    │
-                                            │ port 3773        │
-                                            └──────────────────┘
+```mermaid
+flowchart LR
+    subgraph Client
+        A[curl]
+    end
+
+    subgraph Gateway
+        B[Bindu Gateway]
+    end
+
+    subgraph Services
+        C[OpenRouter]
+        D[Supabase]
+    end
+
+    subgraph Agent
+        E[joke_agent.py]
+    end
+
+    A -->|POST /plan| B
+    B -->|SSE stream| A
+    B -->|Planner| C
+    B -->|Sessions| D
+    B -->|A2A| E
 ```
 
 <Tip>
 The gateway is a **coordinator**. It doesn't answer the question itself; it picks an agent, sends the question, gets the reply, writes a final summary using its own planner LLM.
 </Tip>
 
-If this is the moment the idea clicks — great. Next we'll add a second agent so the gateway has a real choice to make: **[Adding a second agent →](/bindu/gateway/multi-agent)**
+If this is the moment the idea clicks - great. Next we'll add a second agent so the gateway has a real choice to make: **[Adding a second agent →](/bindu/gateway/multi-agent)**
+
+<span className="brand-quote">
+  <img
+    src="/logo/light.svg"
+    alt="Sunflower Logo"
+    width="32"
+    className="clean-icon"
+  />
+
+  <span className="brand-quote-text">
+    Gateway keeps context between requests -{" "}
+    <span className="brand-quote-highlight">stored in Supabase</span>.
+  </span>
+</span>
