@@ -558,3 +558,17 @@ If you ever see a DID from outside Bindu with a different key type, the `authent
 ## The whole thing in one paragraph
 
 A DID is a long identifier string that maps, through a public document, to a cryptographic public key. When you make a request, you sign specific bytes with your private key (Ed25519) and attach the signature as an HTTP header. The server resolves your DID to get the public key, reconstructs the same bytes, and verifies the signature. If it matches, the server knows the request really came from you and wasn't tampered with. Combined with a bearer token from the [Authentication page](/bindu/learn/authentication/overview), this gives Bindu two independent guarantees: *this request is permitted* (token) and *this request is authentic* (signature). Lose either and the request is rejected. Get both right and you have a system where identity and access are verifiable end-to-end — without trusting any single central authority.
+
+<span className="brand-quote">
+  <img
+    src="/logo/light.svg"
+    alt="Sunflower Logo"
+    width="32"
+    className="clean-icon"
+  />
+
+  <span className="brand-quote-text">
+    DID lets you -{" "}
+    <span className="brand-quote-highlight">prove yourself to agents</span>.
+  </span>
+</span>

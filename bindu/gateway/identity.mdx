@@ -1,9 +1,9 @@
 ---
 title: "Identity & Signed Calls"
-description: "Give the gateway a DID — every outbound call gets a cryptographic signature agents can verify."
+description: "Give the gateway a DID - every outbound call gets a cryptographic signature that agents can verify."
 ---
 
-Everything so far has been running on `localhost`. The agents accept unsigned requests because `"auth": { "type": "none" }` tells the gateway not to sign them. That's fine for development — there's no attacker between you and your own laptop.
+Everything so far has been running on `localhost`. The agents accept unsigned requests because `"auth": { "type": "none" }` tells the gateway not to sign them. That's fine for development - there's no attacker between you and your own laptop.
 
 <Warning>
 **In production it isn't.** If your gateway calls an agent over the public internet, anyone who can reach that agent's URL can pretend to be your gateway. They can feed it garbage, steal its output, or (if the agent does anything side-effectful like sending email or moving money) cause real damage.
@@ -15,16 +15,16 @@ The fix is: the gateway gets a cryptographic identity and signs every outbound r
 
 ## What's a DID?
 
-**DID** stands for *Decentralized Identifier*. It's a string that looks like:
+**DID** stands for **Decentralized Identifier**. It's a string that looks like:
 
 ```
 did:bindu:alice_at_example_com:gateway:abc123
 ```
 
-It uniquely identifies an agent or a gateway. Paired with it is an **Ed25519 key pair** — a private key (secret, 32 bytes, lives in an env var) and a public key (safe to share, published at a `.well-known` URL).
+It uniquely identifies an agent or a gateway. Paired with it is an **Ed25519 key pair** - a private key (secret, 32 bytes, lives in an env var) and a public key (safe to share, published at a `.well-known` URL).
 
 <Info>
-You sign outbound requests with the private key. Recipients verify with the public key. Standard public-key cryptography — what puts the green lock in your browser.
+You sign outbound requests with the private key. Recipients verify with the public key. Standard public-key cryptography - what puts the green lock in your browser.
 </Info>
 
 <Tip>
@@ -49,11 +49,11 @@ BINDU_GATEWAY_AUTHOR=you@example.com
 BINDU_GATEWAY_NAME=gateway
 ```
 
-That's enough for the gateway to have an identity. It won't be *useful* yet — we also need to tell the gateway where to publish its public key so agents can fetch it. That's the next piece.
+That's enough for the gateway to have an identity. It won't be *useful* yet - we also need to tell the gateway where to publish its public key so agents can fetch it. That's the next piece.
 
 ---
 
-## Hydra — the registration server
+## Hydra - the registration server
 
 [Ory Hydra](https://www.ory.sh/hydra/) is an open-source OAuth 2.0 / OIDC server. The Bindu team runs one at `hydra-admin.getbindu.com` that any Bindu gateway or agent can register with.
 
@@ -83,10 +83,10 @@ Three things just happened:
 
 <Steps>
   <Step title="The gateway derived a DID and public key from your seed.">
-    Deterministic — same seed always produces the same DID.
+    Deterministic - same seed always produces the same DID.
   </Step>
   <Step title="It POSTed to Hydra's admin API to register.">
-    As an OAuth client, with its DID as the `client_id` and its public key in the metadata. **Idempotent** — safe to restart as many times as you like.
+    As an OAuth client, with its DID as the `client_id` and its public key in the metadata. **Idempotent** - safe to restart as many times as you like.
   </Step>
   <Step title="It exchanged client credentials for an OAuth access token.">
     That token is now cached in memory and refreshed 30 seconds before expiry.
@@ -129,7 +129,7 @@ Change the `/plan` request:
 ```
 
 <Info>
-No `token` or `envVar` — the gateway will use its own Hydra token automatically.
+No `token` or `envVar` - the gateway will use its own Hydra token automatically.
 </Info>
 
 Re-fire. On the wire, three things change:
@@ -139,7 +139,7 @@ Re-fire. On the wire, three things change:
     The gateway computes a canonical JSON representation of the body, signs it with its Ed25519 private key, and attaches the signature as `X-Bindu-Signature` (plus the DID in `X-Bindu-DID`).
   </Card>
   <Card title="OAuth token attached" icon="key">
-    `Authorization: Bearer <token>` — the agent introspects this against Hydra to confirm it's real and unexpired.
+    `Authorization: Bearer <token>` - the agent introspects this against Hydra to confirm it's real and unexpired.
   </Card>
   <Card title="Audit trail recorded" icon="file-contract">
     The signing result is written to Supabase on the task row: *"at time T, gateway signed body hash H to reach agent DID D."*
@@ -164,7 +164,7 @@ On the receiving side, the agent:
 </Steps>
 
 <Warning>
-If any of those three checks fail — signature mismatch, unknown DID, invalid token — the agent returns HTTP 401 and the gateway surfaces that as `event: task.finished` with `state: failed` and a useful error message.
+If any of those three checks fail - signature mismatch, unknown DID, invalid token - the agent returns HTTP 401 and the gateway surfaces that as `event: task.finished` with `state: failed` and a useful error message.
 </Warning>
 
 ---
@@ -194,9 +194,9 @@ If any of those three checks fail — signature mismatch, unknown DID, invalid t
   <Tab title="Manual mode (federated)">
     For federated setups where different peers trust different Hydra instances.
 
-    **Config** — set only the DID env vars (seed, author, name), not the Hydra URLs. For each peer, pre-register your gateway's DID with *that peer's* Hydra (out of band) and obtain an access token. Store the tokens in env vars per peer.
+    **Config** - set only the DID env vars (seed, author, name), not the Hydra URLs. For each peer, pre-register your gateway's DID with *that peer's* Hydra (out of band) and obtain an access token. Store the tokens in env vars per peer.
 
-    **Request side** — tell the gateway which env var to read:
+    **Request side** - tell the gateway which env var to read:
 
     ```json
     "auth": {
@@ -223,7 +223,21 @@ If any of those three checks fail — signature mismatch, unknown DID, invalid t
 </CardGroup>
 
 <Tip>
-If something in this chapter isn't working, the most common cause is a missing env var — the gateway logs exactly which one on boot when a partial config is detected.
+If something in this chapter isn't working, the most common cause is a missing env var - the gateway logs exactly which one on boot when a partial config is detected.
 </Tip>
 
 Last stop: **[Going to production →](/bindu/gateway/production)**
+
+<span className="brand-quote">
+  <img
+    src="/logo/light.svg"
+    alt="Sunflower Logo"
+    width="32"
+    className="clean-icon"
+  />
+
+  <span className="brand-quote-text">
+    To maintain trust between agents -{" "}
+    <span className="brand-quote-highlight">every request is signed</span>.
+  </span>
+</span>

@@ -20,7 +20,7 @@ You've seen the gateway end-to-end. This page is the map of what's next.
     The planner LLM's system prompt. If the gateway is doing something you don't expect, start here.
   </Card>
   <Card title="Seed recipes" icon="book-open" href="https://github.com/GetBindu/Bindu/tree/main/gateway/recipes">
-    The two shipped recipes — `multi-agent-research` and `payment-required-flow` — plus whatever you wrote. Each is a complete example.
+    The two shipped recipes - `multi-agent-research` and `payment-required-flow` - plus whatever you wrote. Each is a complete example.
   </Card>
 </CardGroup>
 
@@ -36,11 +36,11 @@ You've seen the gateway end-to-end. This page is the map of what's next.
     ./examples/gateway_test_fleet/run_matrix.sh
     ```
 
-    Each produces a full SSE log in `examples/gateway_test_fleet/logs/<case>.sse` — open one and read it end to end. It's unusually readable once you know the event types.
+    Each produces a full SSE log in `examples/gateway_test_fleet/logs/<case>.sse` - open one and read it end to end. It's unusually readable once you know the event types.
   </Accordion>
 
   <Accordion title="Write a second recipe" icon="pen-to-square">
-    The one from [the recipes chapter](/bindu/gateway/recipes) was generic. Try a tenant-specific policy — *"always prepend a compliance disclaimer to the final message,"* or *"for any question about PII, refuse and point at the legal agent."*
+    The one from [the recipes chapter](/bindu/gateway/recipes) was generic. Try a tenant-specific policy - *"always prepend a compliance disclaimer to the final message,"* or *"for any question about PII, refuse and point at the legal agent."*
   </Accordion>
 
   <Accordion title="Add a new agent" icon="plus">
@@ -48,7 +48,7 @@ You've seen the gateway end-to-end. This page is the map of what's next.
   </Accordion>
 
   <Accordion title="Edit the planner's system prompt" icon="wand-magic-sparkles">
-    Open `gateway/agents/planner.md` and tighten or loosen its instructions. Changes take effect on the next plan — no restart needed.
+    Open `gateway/agents/planner.md` and tighten or loosen its instructions. Changes take effect on the next plan - no restart needed.
   </Accordion>
 </AccordionGroup>
 
@@ -63,7 +63,7 @@ If you're moving this past localhost:
     Use [the identity chapter](/bindu/gateway/identity) as your walk-through. Unsigned calls are fine on localhost; they're a vulnerability anywhere else.
   </Step>
   <Step title="Rotate GATEWAY_API_KEY from the dev value to a generated secret.">
-    Distribute via your usual secret-management tool — not `.env.local`.
+    Distribute via your usual secret-management tool - not `.env.local`.
   </Step>
   <Step title="Pin the planner model.">
     Add `model: openrouter/anthropic/claude-sonnet-4.6` (or whichever you want) to `gateway/agents/planner.md` frontmatter so upgrades are explicit, not implicit.
@@ -86,7 +86,7 @@ If you're moving this past localhost:
   </Accordion>
 
   <Accordion title="Planner never calls a tool" icon="wrench">
-    The descriptions you gave for `agents[].skills[].description` are probably too short or too vague. Anthropic's docs say tool descriptions are *"by far the most important factor in tool performance"* — 3–4 sentences on intent, inputs, outputs, and when to use it.
+    The descriptions you gave for `agents[].skills[].description` are probably too short or too vague. Anthropic's docs say tool descriptions are *"by far the most important factor in tool performance"* - 3–4 sentences on intent, inputs, outputs, and when to use it.
   </Accordion>
 
   <Accordion title='Agent returns "User not found"' icon="user-xmark">
@@ -124,3 +124,17 @@ Everything else in this repo is either reference material for one of those five 
     Ask questions, share recipes.
   </Card>
 </CardGroup>
+
+<span className="brand-quote mt-5">
+  <img
+    src="/logo/light.svg"
+    alt="Sunflower Logo"
+    width="32"
+    className="clean-icon"
+  />
+
+  <span className="brand-quote-text">
+    Now you have everything you need -{" "}
+    <span className="brand-quote-highlight">build systems you need</span>.
+  </span>
+</span>

@@ -1,10 +1,10 @@
 ---
 title: "The Bindu Gateway"
-description: "An end-to-end story — planner, recipes, DID signing, all wired together."
+description: "An end to end story - planner, recipes, DID signing, all wired together."
 ---
 
 <Note>
-**Budget about 45 minutes** if you're reading straight through and running the commands. If you skip the commands and just read, ~15 minutes. No prior knowledge of AI agents required — we'll introduce each idea when you need it, and never before.
+**Budget about 45 minutes** if you're reading straight through and running the commands. If you skip the commands and just read, ~15 minutes. No prior knowledge of AI agents required - we'll introduce each idea when you need it, and never before.
 </Note>
 
 You've heard the words. *Agent. Planner. A2A. Multi-agent orchestration.* By the end of this section you'll have run all of those things yourself, watched them talk to each other, and taught them a new trick.
@@ -15,13 +15,13 @@ You've heard the words. *Agent. Planner. A2A. Multi-agent orchestration.* By the
 
 <CardGroup cols={2}>
   <Card title="Why a gateway exists" icon="compass" href="/bindu/gateway/overview#why-a-gateway-exists">
-    The problem an orchestrator solves — and what it is not.
+    The problem an orchestrator solves - and what it is not.
   </Card>
   <Card title="Hello, gateway" icon="rocket" href="/bindu/gateway/quickstart">
     Seven steps. One question. One agent. One streaming response.
   </Card>
   <Card title="Adding a second agent" icon="network-wired" href="/bindu/gateway/multi-agent">
-    Three agents, one question — watch the planner choose the order.
+    Three agents, one question - watch the planner choose the order.
   </Card>
   <Card title="Recipes" icon="book-open" href="/bindu/gateway/recipes">
     Teach the planner reusable patterns in plain markdown.
@@ -56,7 +56,7 @@ Now a user asks:
 
 > *"Look up the population of Tokyo, then calculate 0.5% of it, then write a four-line poem about that number of people."*
 
-Without a gateway, **you** — the programmer — have to:
+Without a gateway, **you** - the programmer - have to:
 
 <Steps>
   <Step title="Decide the question needs all three agents.">
@@ -92,7 +92,7 @@ That's not hard for one question. But what about the next hundred questions? Eac
 
 ## How does it "figure it out"?
 
-The gateway has one trick: it uses an LLM — a large language model, like Claude or GPT — as a **planner**. The planner sees:
+The gateway has one trick: it uses an LLM - a large language model, like Claude or GPT - as a **planner**. The planner sees:
 
 - The user's question.
 - A short description of each available agent.
@@ -101,7 +101,7 @@ The gateway has one trick: it uses an LLM — a large language model, like Claud
 Then it decides, turn by turn, which agent to call next. The output of each call feeds back into the planner's context, and it decides whether to call another agent, write a final answer, or ask the user a clarifying question.
 
 <Info>
-Modern LLMs are surprisingly good at this. Anthropic calls it [tool use](https://docs.anthropic.com/claude/docs/tool-use), OpenAI calls it "function calling" — same idea. The gateway wires your agents up as "tools" the planner can invoke and lets the LLM drive.
+Modern LLMs are surprisingly good at this. Anthropic calls it [tool use](https://docs.anthropic.com/claude/docs/tool-use), OpenAI calls it "function calling" - same idea. The gateway wires your agents up as "tools" the planner can invoke and lets the LLM drive.
 </Info>
 
 ---
@@ -113,7 +113,7 @@ Modern LLMs are surprisingly good at this. Anthropic calls it [tool use](https:/
     It doesn't generate answers itself. It orchestrates the ones you already have.
   </Accordion>
   <Accordion title="It doesn't host agents" icon="server">
-    You give it a list of agents per request. The agents run wherever they run — your laptop, a cluster, a third-party service. The gateway just calls them.
+    You give it a list of agents per request. The agents run wherever they run - your laptop, a cluster, a third-party service. The gateway just calls them.
   </Accordion>
   <Accordion title="It doesn't have opinions about your agents" icon="handshake">
     As long as each agent speaks [A2A](https://github.com/GetBindu/Bindu) (a small JSON-RPC 2.0 protocol), the gateway can call it. The Bindu team authored A2A, and `bindufy()`-built agents speak it out of the box.
@@ -125,15 +125,29 @@ Modern LLMs are surprisingly good at this. Anthropic calls it [tool use](https:/
 ## What you'll build by the end
 
 <CardGroup cols={3}>
-  <Card title="Chapter 3" icon="circle-3">
+  <Card title="Agents">
     Three agents running locally, chained automatically to answer a multi-part question.
   </Card>
-  <Card title="Chapter 4" icon="circle-4">
-    A **recipe** — a short markdown file that teaches the planner a reusable pattern without writing any code.
+  <Card title="Recipe">
+    A short markdown file that teaches the planner a reusable pattern without writing any code.
   </Card>
-  <Card title="Chapter 5" icon="circle-5">
-    A **cryptographic identity** — outbound calls get signed so downstream agents can verify the calls are really from your gateway.
+  <Card title="Identity">
+    A cryptographic identity - outbound calls get signed so downstream agents can verify the calls are really from your gateway.
   </Card>
 </CardGroup>
 
 Let's go. Next up: [Hello, gateway](/bindu/gateway/quickstart).
+
+<span className="brand-quote">
+  <img
+    src="/logo/light.svg"
+    alt="Sunflower Logo"
+    width="32"
+    className="clean-icon"
+  />
+
+  <span className="brand-quote-text">
+    Gateway doesn't answer questions -{" "}
+    <span className="brand-quote-highlight">it decides who should</span>.
+  </span>
+</span>
