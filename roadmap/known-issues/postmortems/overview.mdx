@@ -45,7 +45,7 @@ Some bugs don't warrant this. Typos, dependency bumps, style cleanups, one-off b
 
 ---
 
-## Gateway (6)
+## Gateway (7)
 
 <CardGroup cols={2}>
   <Card title="Compaction concurrent races" href="/roadmap/known-issues/postmortems/gateway/compaction-concurrent-races">
@@ -56,6 +56,9 @@ Some bugs don't warrant this. Typos, dependency bumps, style cleanups, one-off b
   </Card>
   <Card title="Compaction mid-turn cut" href="/roadmap/known-issues/postmortems/gateway/compaction-mid-turn-cut">
     Compaction could slice between a `tool_use` and its `tool_result`, breaking the LLM's view of the conversation.
+  </Card>
+  <Card title="Poll budget unbounded wall-clock" href="/roadmap/known-issues/postmortems/gateway/poll-budget-unbounded-wall-clock">
+    A stuck peer could stall a `/plan` for five minutes per tool call with no way to interrupt. Fixed with abort-aware polling and a plan-level deadline.
   </Card>
   <Card title="SpawnReader fiber leak" href="/roadmap/known-issues/postmortems/gateway/spawnreader-fiber-leak">
     A long-running fiber stayed alive after the request completed. Memory crept up over time.
