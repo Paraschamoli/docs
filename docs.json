@@ -291,6 +291,7 @@
                       "roadmap/known-issues/postmortems/gateway/compaction-concurrent-races",
                       "roadmap/known-issues/postmortems/gateway/compaction-lossy-second-pass",
                       "roadmap/known-issues/postmortems/gateway/compaction-mid-turn-cut",
+                      "roadmap/known-issues/postmortems/gateway/poll-budget-unbounded-wall-clock",
                       "roadmap/known-issues/postmortems/gateway/spawnreader-fiber-leak",
                       "roadmap/known-issues/postmortems/gateway/sse-cross-contamination",
                       "roadmap/known-issues/postmortems/gateway/timing-unsafe-token-compare"

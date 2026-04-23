@@ -1,6 +1,6 @@
 ---
 title: "High"
-description: "Three gateway bugs you'll actually hit. Let's talk about them."
+description: "Two gateway bugs you'll actually hit. Let's talk about them."
 ---
 
 Before we dive in, a quick picture of what the gateway even is.
@@ -9,7 +9,11 @@ The gateway is a traffic director. Your app talks to it. It talks to the Bindu a
 
 When something weird happens end-to-end — the agent gives a broken answer, or the request hangs forever, or the history suddenly makes no sense — it's often because of something on this page.
 
-There are three bugs here I want to walk you through. Each one has its own story. If you're debugging and something here feels familiar, you've probably found your match.
+There are two bugs here I want to walk you through. Each one has its own story. If you're debugging and something here feels familiar, you've probably found your match.
+
+<Note>
+  This page used to have a third entry — `poll-budget-unbounded-wall-clock`, where a stuck peer could stall a `/plan` for five minutes per tool call. **Fixed in April 2026.** `sendAndPoll` is now abort-aware, and `preferences.timeout_ms` on `/plan` sets a plan-wide deadline (default 30 min, ceiling 6 h). Same fix closed the related medium-severity `abort-signal-not-propagated-to-bindu-client`. Read the [postmortem](/roadmap/known-issues/postmortems/gateway/poll-budget-unbounded-wall-clock) if you want the story.
+</Note>
 
 ---
 
@@ -35,31 +39,7 @@ The bad number lives in one spot — [`gateway/src/session/overflow.ts`](https:/
 
 ---
 
-## Bug #2: the phone call nobody can hang up
-
-**Slug:** `poll-budget-unbounded-wall-clock`
-
-Imagine you call customer service. You get put on hold. You wait. And wait. You hang up. Except — imagine the customer service line stays *on hold* after you hang up. Nobody on your end is listening anymore, but the line is still ringing in a back room somewhere, forever.
-
-That's this bug.
-
-Here's what's happening. Your user sends a `/plan` request. The gateway needs to ask a peer agent to do one thing as part of it. The peer is busy — maybe it's waiting on something slow, maybe it's genuinely stuck — and it isn't finishing.
-
-The gateway has a polling loop that keeps checking: *is it done yet? is it done yet?* It tries up to 60 times, with gaps that grow from a tiny delay to 10 seconds. Worst case: five minutes of polling for one tool call.
-
-Meanwhile on the user's end: their connection to the gateway is still open, their screen is doing nothing, and eventually their browser gives up and closes the tab. User is gone.
-
-But the gateway doesn't know that. The polling loop keeps running in the background. It's still calling the peer, still checking, still waiting. Nobody told it to stop.
-
-If your plan needs ten tool calls and two of them hang, you've just turned one user request into fifty minutes of background work on a connection that doesn't exist anymore.
-
-The code is at [`gateway/src/bindu/client/poll.ts`](https://github.com/GetBindu/Bindu/blob/main/gateway/src/bindu/client/poll.ts). The deeper problem is that there's no time limit on the whole `/plan` — just limits on each individual phone call. One stuck peer can hold the whole thing hostage.
-
-**What you can do today.** When you set up the Bindu client, pass in a smaller `maxPolls` number, or a shorter wait schedule. Knowing that your user might disconnect won't help you directly — that's a separate bug ([see it on the medium page](/roadmap/known-issues/gateway/medium)). The easiest real-world timeout is from the outside: put a client-side timeout on the SSE request so the gateway at least *could* notice if we taught it to listen.
-
----
-
-## Bug #3: two people writing in the same notebook
+## Bug #2: two people writing in the same notebook
 
 **Slug:** `no-session-concurrency-guard`
 
@@ -81,6 +61,6 @@ The proper fix is a per-session lock inside the gateway — so the second `/plan
 
 ---
 
-## That's the three
+## That's the two
 
 Those are the gateway bugs big enough to write stories about. The rest — medium, low, nits — are on their own pages, one click away. Medium is worth skimming before you ship. Low is "things to know." Nits are cleanup for rainy afternoons.

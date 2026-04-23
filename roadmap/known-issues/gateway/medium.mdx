@@ -51,16 +51,6 @@ And here's the thing: *it's worse than having no defense at all*, because downst
 
 ## Things about concurrency and what happens under load
 
-### When the user leaves, the gateway doesn't notice
-
-**Slug:** `abort-signal-not-propagated-to-bindu-client`
-
-User closes the browser. The gateway's SSE handler aborts. But the polling loops that were talking to peer agents? Those keep going. Up to 60 attempts with backoff — five minutes worst case — after the user is already gone.
-
-Related to the poll-budget bug on the [high page](/roadmap/known-issues/gateway/overview).
-
-**What to do.** Nothing client-side. Just know that an aborted plan can leave background work running for a few minutes.
-
 ### The whole agent catalog gets overwritten every turn
 
 **Slug:** `agent-catalog-overwrite`

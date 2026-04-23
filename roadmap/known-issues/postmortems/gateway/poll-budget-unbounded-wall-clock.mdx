@@ -1,0 +1,75 @@
+---
+title: "A stuck peer could stall a /plan for five minutes per tool call"
+description: "No wall-clock ceiling, no abort propagation — one hung peer held entire plans hostage."
+---
+
+| | |
+|---|---|
+| **Severity** | high |
+| **Status** | fixed |
+| **Found** | 2026-04-20 |
+| **Fixed** | 2026-04-23 |
+| **Area** | `gateway/bindu-client` |
+
+---
+
+## Symptom
+
+A `/plan` request that hit a stuck Bindu peer — one stuck in `working` state, never advancing — would park the entire plan for **up to five minutes per tool call.** The caller's SSE stream stayed open. The session row stayed locked. And a client disconnect did not help: the polling loop kept hammering the hung peer until it exhausted its 60-attempt budget, even after the user's browser had given up and closed the tab.
+
+The worst case in the wild:
+
+- A single misbehaving peer burned ~5 minutes of gateway compute per call, with nothing the caller could do to reclaim it.
+- Aborted requests (user closed the tab, SSE client timed out) still consumed backend resources for minutes after the user was gone.
+- Legitimate long-running research workloads had no way to express an explicit time budget. The only knob was `maxPolls`, which is poorly aligned with wall-clock intent — two peers with different backoff histories could burn radically different amounts of real time under the same `maxPolls`.
+
+## Root cause
+
+Two independent gaps that compounded each other.
+
+**Gap 1: `sendAndPoll` ignored the abort signal between polls.** The loop in `gateway/src/bindu/client/poll.ts` only checked `maxPolls`. The inter-poll sleep was a plain `setTimeout` with no abort wiring:
+
+```ts
+for (let i = 0; i < maxPolls; i++) {
+  await sleep(backoff[Math.min(i, backoff.length - 1)])  // non-abortable
+  // ... poll ...
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+```
+
+Even when the caller's `AbortSignal` fired mid-backoff, the loop kept sleeping to the next boundary — up to 10 seconds per iteration. The signal was threaded into the HTTP layer, so an in-flight `fetch` would cancel, but the loop itself was deaf to it.
+
+**Gap 2: no plan-level deadline existed.** `PlanPreferences.timeout_ms` was declared in the Zod schema but never read by `runPlan`. The planner only received `opts?.abort` (the client-disconnect signal from the SSE handler), which by itself couldn't express "fail after N seconds." A caller wanting a time budget had to enforce it externally with a client-side `fetch` timeout — and even that only stopped the stream, not the gateway's background polling.
+
+The combination meant a stuck peer + a silent or disconnected client = an indefinite gateway stall, with no API-surfaced way for a caller to cap the blast radius.
+
+## Fix
+
+Two matching changes, same mental model at both layers.
+
+- **`sendAndPoll` is now abort-aware.** A merged `AbortController` composes the caller's signal with an optional `deadlineMs` timer into a single `AbortSignal`. `sleep()` is replaced with `abortableSleep(ms, signal)` that rejects immediately on abort. On any abort the client issues a best-effort `tasks/cancel` to the peer, then throws `BinduError(-32040, AbortedByCaller)` with `data.reason` set to `"signal"` or `"deadline"` — callers and dashboards can distinguish client-disconnect from budget-exceeded without parsing messages.
+
+- **`runPlan` enforces a plan-level deadline.** `preferences.timeout_ms` now drives a single `AbortController` at the planner level, forwarded into compaction and the prompt loop. Default: **30 minutes** when unset; hard ceiling **6 hours** (schema-validated, requests above the cap return 400 at the API boundary). When the deadline fires, the same abort flows through `ctx.abort → callPeer({signal}) → sendAndPoll`, cancelling every in-flight peer poll simultaneously.
+
+## Why the tests didn't catch it
+
+Two independent blind spots.
+
+The existing poll tests used `backoffMs: [0, 0, 0, 0]` for speed. With zero-millisecond sleeps, the abortable-vs-not-abortable distinction was invisible. A test that actually exercised a real backoff delay while aborting mid-sleep would have caught gap 1 on day one. This is a general trap: performance-minded test setups can accidentally short-circuit the very behavior they're meant to verify.
+
+For gap 2, `timeout_ms` existed in the schema tests (the schema accepted the value, round-tripped it) but no test asserted the planner actually *consumed* it. The field was declared for weeks before anyone noticed nothing read it. A single assertion of the form "with `timeout_ms: 500`, a plan against a stuck peer fails within ~1 second" would have caught the entire class of "preference declared but ignored" bugs.
+
+## Class of bug — where else to watch
+
+**Every wait loop needs an abort-aware sleep.** A signal is only as strong as the awaitable that watches it. `setTimeout` is not one of those by default. Grep the codebase for `setTimeout` inside polling or retry loops and audit each one — look specifically for:
+
+- `compaction` retry loops
+- any future streaming-backoff paths
+- SDK-side retry helpers (the TypeScript SDK has its own `sleep()` that will need the same treatment when it grows abort handling)
+
+**If a preference exists in the schema, it needs a test that reads it.** `timeout_ms`, `max_hops`, `max_steps`, `response_format` — any field that shapes runtime behavior should have a black-box test of the form "set value X, observe behavior Y." The contract test (does the schema accept this?) is necessary but not sufficient.
+
+**Merge caller signals + internal deadlines into one `AbortController`.** Two parallel "who fires first" paths create corner cases: cleanup order, double-abort, race between the two abort listeners. One controller with a `reason` field keeps the error shape disambiguated without branching at every await. The same pattern now appears in two places — `mergeAbort` in `poll.ts` and `makePlanDeadline` in `planner/index.ts` — and should be the default shape for any future "fire on external signal OR internal timer" composition.
