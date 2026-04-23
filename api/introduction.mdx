@@ -64,17 +64,25 @@ curl -X POST http://localhost:3773 \
     "jsonrpc": "2.0",
     "method": "message/send",
     "params": {
-      "message": {
-        "role": "user",
-        "parts": [{"kind": "text", "text": "Hello!"}],
-        "messageId": "msg-001",
-        "contextId": "ctx-001",
-        "taskId": "task-001",
-        "kind": "message"
-      }
+     "message": {
+      "role": "user",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "hello"
+        }
+      ],
+      "kind": "message",
+      "messageId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "contextId": "8e4d2c1a-9b3e-4f7a-9c2d-1a5e6b7c8d9f",
+      "taskId": "3a2b1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c51"
     },
-    "id": "1"
-  }'
+    "configuration": {
+      "acceptedOutputModes": ["application/json"]
+    }
+  },
+  "id": "6d8e9f0a-1b2c-4d3e-8f9a-0b1c2d3e4f5a"
+}'
 ```
 
 ### 2. Get Task Status
@@ -84,13 +92,13 @@ curl -X POST http://localhost:3773 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <your-token>" \
   -d '{
-    "jsonrpc": "2.0",
-    "method": "tasks/get",
-    "params": {
-      "taskId": "task-001"
-    },
-    "id": "2"
-  }'
+  "jsonrpc": "2.0",
+  "method": "tasks/get",
+  "params": {
+    "taskId": "3a2b1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c51"
+  },
+  "id": "b7c9e1f3-4a5d-4b8c-9e0f-1a2b3c4d5e6f"
+}'
 ```
 
 ### 3. Get Agent Card
@@ -189,7 +197,7 @@ Errors follow JSON-RPC 2.0 format:
 ```json
 {
   "jsonrpc": "2.0",
-  "id": "1",
+  "id": "6d8e9f0a-1b2c-4d3e-8f9a-0b1c2d3e4f5a"
   "error": {
     "code": -32602,
     "message": "Invalid params",
@@ -301,13 +309,13 @@ For long-running tasks, you don't have to poll. Pass a `push_notification_config
       "acceptedOutputModes": ["application/json"],
       "long_running": true,
       "push_notification_config": {
-        "id": "<uuid>",
+        "id": "6d8e9f0a-1b2c-4d3e-8f9a-0b1c2d3e4f5a"
         "url": "https://your-app.com/webhook",
         "token": "secret_abc123"
       }
     }
   },
-  "id": "1"
+  "id": "b7c9e1f3-4a5d-4b8c-9e0f-1a2b3c4d5e6f"
 }
 ```
 

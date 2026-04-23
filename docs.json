@@ -212,7 +212,8 @@
               "examples/advanced/typescript-langchain-agent",
               "examples/advanced/typescript-openai-agent",
               "examples/advanced/quiz-generator-agent",
-              "examples/advanced/multilingual-collab-agent-v2"
+              "examples/advanced/multilingual-collab-agent-v2",
+              "examples/advanced/hermes-agent"
             ]
           }
         ]
