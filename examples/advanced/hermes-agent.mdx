@@ -1,0 +1,396 @@
+---
+title: "3.10 Hermes Agent"
+---
+
+Advanced tool-using agent with web, filesystem, and code execution capabilities.
+
+## Code
+
+Create `hermes-agent.py` with the code below, or save it directly from your editor.
+
+```python
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "bindu @ git+https://github.com/GetBindu/Bindu.git",
+#   "hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git",
+# ]
+# ///
+"""Hermes-Agent via Bindu.
+
+Runs hermes-agent's ``AIAgent`` — a full tool-using coding/research agent —
+as a bindufied A2A microservice. DID identity, OAuth2-ready HTTP on :3773,
+optional FRP tunnel, x402 payments.
+
+This example is self-contained: it does not depend on any add-on module.
+Only the two packages listed below need to be installed.
+
+Setup (Python 3.12+):
+    cp .env.example .env && $EDITOR .env      # set OPENROUTER_API_KEY
+
+Run (one command — uv reads the PEP 723 header and installs deps on demand):
+    uv run hermes-agent.py
+
+Or, for a persistent install:
+    uv pip install bindu \\
+        "hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git"
+    python hermes-agent.py
+
+Tiers (`HERMES_TIER` env var) control which Hermes toolsets are exposed:
+    read    — web search + web extract only (default, safe for tunnels)
+    sandbox — adds filesystem read/write and execute_code
+    full    — everything (terminal, browser, MCP). Localhost only.
+
+Note: `full` tier exposes terminal + code execution. Never combine it with
+a public tunnel.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any
+
+from bindu.penguin.bindufy import bindufy
+from run_agent import AIAgent
+
+# Toolset tiers. `None` means no restriction (full tier).
+_TIERS: dict[str, list[str] | None] = {
+    "read": ["web"],
+    "sandbox": ["web", "file", "moa"],
+    "full": None,
+}
+
+_agent: AIAgent | None = None
+
+
+def _get_agent() -> AIAgent:
+    """Lazily create one shared AIAgent per process.
+
+    Keeping a single long-lived agent preserves Anthropic prompt caching
+    across Bindu calls — Bindu replays the full history every request, but
+    we only feed the *new* user message into the agent's growing message list.
+    """
+    global _agent
+    if _agent is None:
+        tier = os.getenv("HERMES_TIER", "read")
+        _agent = AIAgent(
+            model=os.getenv("HERMES_MODEL", "anthropic/claude-3.5-haiku"),
+            max_iterations=30,
+            enabled_toolsets=_TIERS.get(tier, _TIERS["read"]),
+            quiet_mode=True,
+            platform="bindu",
+            save_trajectories=False,
+            skip_memory=True,
+            persist_session=False,
+        )
+    return _agent
+
+
+def _last_user_text(messages: list[dict[str, Any]]) -> str:
+    """Extract the newest user message's text, tolerating the A2A parts shape."""
+    for m in reversed(messages):
+        if m.get("role") != "user":
+            continue
+        content = m.get("content", "")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return "\n".join(
+                p.get("text", "")
+                for p in content
+                if isinstance(p, dict) and p.get("kind") == "text"
+            )
+    return ""
+
+
+def handler(messages: list[dict[str, Any]]) -> str:
+    """Bindu handler contract: (messages) -> string."""
+    text = _last_user_text(messages)
+    if not text.strip():
+        return "Empty message."
+    return _get_agent().chat(text)
+
+
+config = {
+    "author": os.getenv("HERMES_AUTHOR", "you@example.com"),
+    "name": os.getenv("HERMES_NAME", "hermes"),
+    "description": "Hermes agent (tool-using) exposed as a Bindu A2A microservice",
+    "deployment": {
+        "url": os.getenv("HERMES_URL", "http://localhost:3773"),
+        "expose": True,
+        "cors_origins": ["http://localhost:5173"]
+    },
+    "skills": ["skills/hermes-agent-skill"],
+}
+
+
+if __name__ == "__main__":
+    bindufy(config, handler)
+```
+
+## Skill Configuration
+
+Create `skills/hermes-agent-skill/skill.yaml`:
+
+```yaml
+# Hermes Agent Skill
+# Advanced tool-using agent with web, filesystem, and code execution capabilities
+
+id: hermes-agent-skill
+name: Hermes Agent Skill
+version: 1.0.0
+author: hermes-developer@example.com
+
+description: |
+  Advanced tool-using agent from Nous Research with comprehensive capabilities
+  for coding, research, and automation tasks.
+
+  Features:
+  - Web search and extraction capabilities
+  - Filesystem read/write operations (sandbox tier)
+  - Code execution and terminal access (full tier)
+  - MCP (Model Context Protocol) integration
+  - Anthropic prompt caching for efficiency
+  - Toolset tiering for safety control
+
+  Safety Tiers:
+  - read: Web search and extraction only (default, safe for public deployment)
+  - sandbox: Adds filesystem and code execution (trusted environments)
+  - full: Complete toolset including terminal and MCP (localhost only)
+
+tags:
+  - tool-using
+  - coding
+  - research
+  - automation
+  - web-search
+  - file-system
+  - code-execution
+  - mcp
+
+input_modes:
+  - application/json
+  - text/plain
+
+output_modes:
+  - application/json
+  - text/plain
+
+examples:
+  - "Research the latest developments in quantum computing"
+  - "Write a Python script to analyze CSV data"
+  - "Create a web scraper for e-commerce prices"
+  - "Set up a development environment for React"
+  - "Analyze this dataset and generate visualizations"
+
+capabilities_detail:
+  web_search:
+    supported: true
+    description: "Real-time web search and content extraction"
+    tier: "read"
+  
+  file_operations:
+    supported: true
+    description: "Filesystem read/write operations"
+    tier: "sandbox"
+  
+  code_execution:
+    supported: true
+    description: "Execute code in sandboxed environment"
+    tier: "sandbox"
+  
+  terminal_access:
+    supported: true
+    description: "Full terminal and command execution"
+    tier: "full"
+  
+  mcp_integration:
+    supported: true
+    description: "Model Context Protocol for external tool integration"
+    tier: "full"
+
+requirements:
+  packages:
+    - "bindu @ git+https://github.com/GetBindu/Bindu.git"
+    - "hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git"
+  system:
+    - python_312_or_higher
+    - uv_package_manager
+  api_keys:
+    - OPENROUTER_API_KEY
+    - ANTHROPIC_API_KEY
+    - OPENAI_API_KEY
+
+performance:
+  avg_processing_time_ms: 15000
+  max_concurrent_requests: 3
+  context_window_tokens: 200000
+  scalability: horizontal
+
+assessment:
+  keywords:
+    - code
+    - research
+    - analyze
+    - create
+    - write
+    - script
+    - search
+    - web
+    - file
+    - execute
+    - terminal
+
+  specializations:
+    - domain: coding-development
+      confidence_boost: 0.5
+    - domain: research-analysis
+      confidence_boost: 0.4
+    - domain: automation-tasks
+      confidence_boost: 0.3
+
+  anti_patterns:
+    - "simple conversation"
+    - "basic q&a"
+    - "image generation"
+    - "audio processing"
+
+  complexity_indicators:
+    simple:
+      - "search for"
+      - "find information"
+      - "explain"
+    medium:
+      - "write script"
+      - "analyze data"
+      - "create tool"
+    complex:
+      - "build system"
+      - "develop application"
+      - "automate workflow"
+```
+
+## How It Works
+
+**Hermes Agent Integration**
+- `AIAgent`: Full tool-using agent from Nous Research
+- Prompt caching preservation across Bindu calls
+- Lazy initialization for resource efficiency
+
+**Safety Tiers**
+- `read`: Web search and extraction only (default)
+- `sandbox`: Adds filesystem and code execution
+- `full`: Complete toolset including terminal access
+- Never expose `full` tier with public tunnels
+
+**Tool Capabilities**
+- Web search and content extraction
+- Filesystem operations (read/write)
+- Code execution in sandboxed environments
+- Terminal access and command execution
+- MCP integration for external tools
+
+**Message Processing**
+- Extracts latest user message from A2A format
+- Handles both string and list content structures
+- Feeds only new messages to preserve caching
+
+## Dependencies
+
+```bash
+# Option A: One command with PEP 723
+uv run hermes-agent.py
+
+# Option B: Persistent install
+uv pip install bindu \
+  "hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git"
+```
+
+## Environment Setup
+
+Create `.env` file:
+```bash
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+HERMES_MODEL=anthropic/claude-3.5-haiku
+HERMES_TIER=read
+HERMES_URL=http://localhost:3773
+HERMES_NAME=hermes
+HERMES_AUTHOR=your.email@example.com
+```
+
+## Run
+
+```bash
+uv run hermes-agent.py
+```
+
+**Examples:**
+
+- "Research the latest developments in quantum computing"
+- "Write a Python script to analyze CSV data"
+- "Create a web scraper for e-commerce prices"
+- "Set up a development environment for React"
+
+## Example API Calls
+
+<AccordionGroup>
+  <Accordion title="Message Send Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "kind": "message",
+      "messageId": "9f11c870-5616-49ad-b187-d93cbb100001",
+      "contextId": "9f11c870-5616-49ad-b187-d93cbb100002",
+      "taskId": "9f11c870-5616-49ad-b187-d93cbb100003",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "Research the latest developments in quantum computing"
+        }
+      ]
+    },
+     "skillId": "hermes-agent-skill",
+    "configuration": {
+      "acceptedOutputModes": ["application/json"]
+    }
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100003"
+}
+```
+  </Accordion>
+  
+  <Accordion title="Task get Request">
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tasks/get",
+  "params": {
+    "taskId": "9f11c870-5616-49ad-b187-d93cbb100003"
+  },
+  "id": "9f11c870-5616-49ad-b187-d93cbb100004"
+}
+```
+  </Accordion>
+</AccordionGroup>
+
+## Frontend Setup
+
+```bash
+# Clone the Bindu repository
+git clone https://github.com/GetBindu/Bindu
+
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start frontend development server
+npm run dev
+```
+
+Open http://localhost:5173 and try to chat with the Hermes agent
