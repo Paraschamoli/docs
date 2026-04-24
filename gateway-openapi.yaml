@@ -334,35 +334,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
               example:
-                version: "0.1.0"
-                health: "healthy"
-                runtime:
-                  storage_backend: "Supabase"
-                  bus_backend: "EffectPubSub"
-                  planner:
-                    model: "openrouter/anthropic/claude-sonnet-4.6"
-                    provider: "openrouter"
-                    model_id: "anthropic/claude-sonnet-4.6"
-                    temperature: 0.3
-                    top_p: null
-                    max_steps: 10
-                  recipe_count: 2
-                  did_signing_enabled: true
-                  hydra_integrated: true
-                application:
-                  name: "@bindu/gateway"
-                  session_mode: "stateful"
-                  gateway_did: "did:bindu:ops_at_example_com:gateway:f72ba681-f873-324c-6012-23c4d5b72451"
-                  gateway_id: "f72ba681-f873-324c-6012-23c4d5b72451"
-                  author: "ops_at_example_com"
-                system:
-                  node_version: "v22.22.1"
-                  platform: "darwin"
-                  architecture: "arm64"
-                  environment: "development"
-                status: "ok"
-                ready: true
-                uptime_seconds: 2.4
+                ok: true
+                name: "@bindu/gateway"
+                session: "stateful"
+                supabase: true
 
   /.well-known/did.json:
     get:
@@ -409,12 +384,12 @@ paths:
                 "@context":
                   - "https://www.w3.org/ns/did/v1"
                   - "https://getbindu.com/ns/v1"
-                id: "did:bindu:gateway-prod-key-1"
+                id: "did:bindu:raahul_at_getbindu_com:gateway:f72ba681-f873-324c-6012-23c4d5b72451"
                 authentication:
-                  - id: "did:bindu:gateway-prod-key-1#key-1"
+                  - id: "did:bindu:raahul_at_getbindu_com:gateway:f72ba681-f873-324c-6012-23c4d5b72451#key-1"
                     type: "Ed25519VerificationKey2020"
-                    controller: "did:bindu:gateway-prod-key-1"
-                    publicKeyBase58: "6MkjQ2r..."
+                    controller: "did:bindu:raahul_at_getbindu_com:gateway:f72ba681-f873-324c-6012-23c4d5b72451"
+                    publicKeyBase58: "573SRD1L1EPFaKd77q6TEUGsMatVsn7jdKqPrTKBD9XK"
         "404":
           description: No DID identity configured on this gateway instance.
 
@@ -707,44 +682,27 @@ components:
 
     HealthResponse:
       type: object
-      required: [version, health, runtime, application, system, status, ready, uptime_seconds]
+      required: [ok, name, session, supabase]
       description: |
-        Detailed gateway health payload. Shape aligned with the per-agent
-        Bindu health (the one a `bindufy()`-built agent returns), adapted
-        for the coordinator role: `gateway_id`/`gateway_did` replace the
-        agent-side `penguin_id`/`agent_did`, and `runtime` reports
-        gateway-specific knobs (planner model, recipe count, DID-signing
-        status) instead of the agent's task-manager fields.
+        Simplified gateway health payload providing essential status information.
       properties:
-        version:
-          type: string
-          description: Gateway package version, from gateway/package.json.
-          example: "0.1.0"
-        health:
-          type: string
-          enum: [healthy, degraded, unhealthy]
-          description: |
-            Overall classification.
-            - `healthy`: every boot invariant satisfied, planner model resolves.
-            - `degraded`: non-critical subsystem missing (reserved — no current signals trigger this).
-            - `unhealthy`: a required invariant is broken (e.g. no planner model configured).
-        runtime:
-          $ref: "#/components/schemas/HealthRuntime"
-        application:
-          $ref: "#/components/schemas/HealthApplication"
-        system:
-          $ref: "#/components/schemas/HealthSystem"
-        status:
-          type: string
-          enum: [ok, error]
-          description: Two-state mirror of `health` — `ok` when healthy, `error` when unhealthy. Provided for operators that prefer binary.
-        ready:
+        ok:
           type: boolean
-          description: Liveness gate. True when every boot invariant is satisfied. Use this for k8s readiness probes via a `jq` post-processor.
-        uptime_seconds:
-          type: number
-          description: Seconds since gateway process boot (float, 2 decimal places).
-          example: 23.3
+          description: Overall health status - true when healthy, false when unhealthy.
+          example: true
+        name:
+          type: string
+          description: Gateway service name identifier.
+          example: "@bindu/gateway"
+        session:
+          type: string
+          enum: [stateful, stateless]
+          description: Session persistence mode configuration.
+          example: "stateful"
+        supabase:
+          type: boolean
+          description: Whether Supabase storage backend is connected and healthy.
+          example: true
 
     HealthRuntime:
       type: object
